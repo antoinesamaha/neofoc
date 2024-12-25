@@ -1,0 +1,80 @@
+package b01.foc.formula.fucntion.old;
+
+import b01.foc.Globals;
+import b01.foc.desc.FocConstructor;
+import b01.foc.desc.FocDesc;
+import b01.foc.desc.FocObject;
+import b01.foc.desc.field.FFieldPath;
+import b01.foc.formula.FunctionFactory;
+import b01.foc.list.FocLinkSimple;
+import b01.foc.list.FocList;
+
+public class FunctionStaticPath extends FunctionPath {
+	private static final String FUNCTION_NAME = "STATIC_PATH";
+	private static final String OPERATOR_SYMBOL = null;
+	private FocDesc focDescToStartFieldPathFrom = null;
+	private FocObject focObjectToStartFieldFrom = null;
+	
+	public void dispose(){
+		super.dispose();
+		this.focDescToStartFieldPathFrom = null;
+		this.focObjectToStartFieldFrom = null;
+	}
+	
+	protected FocObject getFocObjectToStartFieldPathFrom(){
+		if(focObjectToStartFieldFrom == null){
+			FocLinkSimple link = new FocLinkSimple(getFocDescToStartFieldPathFrom());
+			FocList list = new FocList(link);
+			list.loadIfNotLoadedFromDB();
+			if(list.size() > 1){
+				Globals.getDisplayManager().popupMessage("Waring mulitple row found in DB for a static instance");
+			}
+			focObjectToStartFieldFrom = list.getFocObject(0);
+			if(focObjectToStartFieldFrom == null){
+				FocConstructor constr = new FocConstructor(getFocDescToStartFieldPathFrom(), null);
+				focObjectToStartFieldFrom = constr.newItem();
+			}
+		}
+		return focObjectToStartFieldFrom;
+	}
+	
+	protected FocDesc getFocDescToStartFieldPathFrom(){
+		if(focDescToStartFieldPathFrom == null){
+			String focDescStorageName = (String) getOperandAt(0).compute();
+			focDescToStartFieldPathFrom = Globals.getApp().getFocDescByName(focDescStorageName);
+		}
+		return focDescToStartFieldPathFrom;
+	}
+	
+	protected void plugFormulaAsListener(FFieldPath fieldPath){
+		
+	}
+	
+	protected int getArgumentPositionForStringPath(){
+		return 1;
+	}
+	
+	public void addOperand(IOperand operand){
+		if(getOperandCount() == 0){
+			addOperand_SUPPER(operand);
+		}else{
+			super.addOperand(operand);
+		}
+	}
+	
+	public boolean needsManualNotificationToCompute() {
+		return true;
+	}
+	
+	public static String getFunctionName(){
+		return FUNCTION_NAME;
+	}
+	
+	public static String getOperatorSymbol(){
+		return OPERATOR_SYMBOL;
+	}
+	
+	public static int getOperatorPriority(){
+		return FunctionFactory.PRIORITY_NOT_APPLICABLE;
+	}
+}

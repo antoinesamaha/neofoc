@@ -1,0 +1,275 @@
+// PROPERTIES
+// INSTANCE
+//    MAIN
+//    PANEL
+// LIST
+// DESCRIPTION
+
+/*
+ * Created on 01-Feb-2005
+ */
+package b01.foc.business.cashdesk;
+
+import b01.foc.*;
+import b01.foc.desc.*;
+import b01.foc.desc.field.*;
+import b01.foc.event.FValidationListener;
+import b01.foc.gui.*;
+import b01.foc.gui.table.*;
+import b01.foc.list.*;
+import b01.foc.property.*;
+import b01.foc.admin.FocGroupDesc;
+import b01.foc.admin.FocUser;
+import b01.foc.admin.FocGroup;
+import b01.foc.business.multilanguage.MultiLanguage;
+
+import java.awt.GridBagConstraints;
+import java.util.*;
+
+
+/**
+ * @author 01Barmaja
+ */
+public class CashDesk extends FocObject {
+  
+  private int currentUserAccess = FocGroupDesc.CASH_ACCESS_NONE;
+  
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // INSTANCE
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+
+  // ---------------------------------
+  //    MAIN
+  // ---------------------------------
+
+  public CashDesk(FocConstructor constr) {
+    super(constr);
+
+    new FString(this, FLD_NAME, "") ;
+    new FObject(this, FLD_USER, null) ;
+  }
+
+  public String getName(){
+    FProperty str = getFocProperty(FLD_NAME);
+    return str.getString();
+  }
+
+  public FocUser getUser(){
+    FObject str = (FObject) getFocProperty(FLD_USER);
+    return (FocUser)str.getObject_CreateIfNeeded();
+  }
+  
+  public boolean isOwnedByCurrentUser(){
+    FocUser owner = getUser();
+    FocUser user = Globals.getApp().getUser();
+    
+    return owner != null && user.getName().compareTo(owner.getName()) == 0;
+  }
+
+  public int getCurrentUserAccess() {
+    return currentUserAccess;
+  }
+  
+  public void setCurrentUserAccess(int currentUserAccess) {
+    this.currentUserAccess = currentUserAccess;
+  }
+  
+  // ---------------------------------
+  //    PANEL
+  // ---------------------------------
+
+  public FPanel newDetailsPanel(int viewID) {
+    FPanel panel = new FPanel();
+    FGTextField comp = (FGTextField) getGuiComponent(FLD_NAME);
+    comp.setEnabled(false);
+    comp.setColumns(4);
+    panel.add(comp, 0, 0);
+    return panel;
+  }
+
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // LIST
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+
+  public static final int COL_NAME = 1;
+  public static final int COL_USER = 2;
+  
+  private static FocList focList = null;
+  private static FocList focListNoViews = null;
+
+  public static FocList createList(){
+    FocLink link = new FocLinkSimple(focDesc);
+    FocList focList = new FocList(link);
+
+    FocListOrder listOrder = new FocListOrder();
+    listOrder.addField(FFieldPath.newFieldPath(FLD_NAME));
+    focList.setListOrder(listOrder);
+    
+    return focList;
+  }
+  
+  private static FocList getList(FocList focList, int mode, boolean forModificationAccess){
+    if(focList == null){
+      focList = createList();
+    }
+    
+    boolean filterOutCashDesks = false;
+    if(mode == FocList.LOAD_IF_NEEDED){
+      focList.loadIfNotLoadedFromDB();
+      filterOutCashDesks = true;  
+    }else if(mode == FocList.FORCE_RELOAD){
+      focList.reloadFromDB();
+      filterOutCashDesks = true;
+    }
+
+    //Here we might need to exclude some items
+    if(filterOutCashDesks){
+      FocUser user = Globals.getApp().getUser();
+      FocGroup group = user.getGroup();
+
+      Iterator iter = focList.listElementIterator();
+      while(iter != null && iter.hasNext()){
+        FocListElement cashDeskElmt = (FocListElement) iter.next();
+        CashDesk cashDesk = (CashDesk) cashDeskElmt.getFocObject();
+                  
+        cashDesk.setCurrentUserAccess(group != null ? group.getCashDeskAccess() : FocGroupDesc.CASH_ACCESS_NONE);        
+        if(cashDesk.isOwnedByCurrentUser()){
+          cashDesk.setCurrentUserAccess(FocGroupDesc.CASH_ACCESS_OWNER);
+        }
+        
+        if(cashDesk.getCurrentUserAccess() == FocGroupDesc.CASH_ACCESS_NONE || (forModificationAccess && cashDesk.getCurrentUserAccess() == FocGroupDesc.CASH_ACCESS_VIEWER)){
+          cashDeskElmt.setHide_Soft(true);
+        }
+      }
+    }
+    
+    return focList;
+  }
+
+  public static FocList getList(int mode){
+    focList = getList(focList, mode, false);
+    return focList; 
+  }
+
+  public static FocList getListWithoutViewer(int mode){
+    focListNoViews = getList(focListNoViews, mode, true);
+    return focListNoViews; 
+  }
+
+  public static void reloadList(){
+    FocList list = getListWithoutViewer(FocList.LOAD_IF_NEEDED);
+    list.reloadFromDB();
+  }
+  
+  public static FPanel newBrowsePanel(FocList list, int viewID) {
+    FocDesc desc = getFocDesc();
+    FPanel mainPanel = new FPanel();
+    FListPanel selectionPanel = null;
+    if (desc != null) {
+      FocUser.getList();
+      
+      if(list == null){
+        list = createList();
+        list.loadIfNotLoadedFromDB();
+      }
+      
+      if (list != null) {
+        list.setDirectImpactOnDatabase(false);
+
+        selectionPanel = new FListPanel(list);
+        mainPanel.add(selectionPanel, 0, 0);
+        FTableView tableView = selectionPanel.getTableView();
+        
+        FTableColumn col = null;
+
+        col = new FTableColumn(desc, FFieldPath.newFieldPath(FLD_NAME), COL_NAME, MultiLanguage.getString(FocLangKeys.CASH_CASHDESK), true);
+        tableView.addColumn(col);
+
+        col = new FTableColumn(desc, FFieldPath.newFieldPath(FLD_USER), COL_USER, MultiLanguage.getString(FocLangKeys.CASH_CASHDESK_OWNER), true);
+        tableView.addColumn(col);
+
+        selectionPanel.construct();
+
+        selectionPanel.setDirectlyEditable(true);
+        
+        CashDeskConfig config = CashDeskConfig.getCashDeskConfig();
+        FPanel currencyConfigPanel = config.newDetailsPanel(0);
+        
+        mainPanel.add(currencyConfigPanel, 1, 0, 0, 0, GridBagConstraints.NORTH, GridBagConstraints.NONE);        
+        
+        FValidationPanel savePanel = selectionPanel.showValidationPanel(true);
+        if (savePanel != null) {
+          //list.setFatherSubject(null);
+          savePanel.addSubject(list);
+          savePanel.addSubject(config);
+          savePanel.setValidationListener(new FValidationListener(){
+            public boolean proceedValidation(FValidationPanel panel) {
+              return true;
+            }
+            public boolean proceedCancelation(FValidationPanel panel) {
+              return true;
+            }
+            public void postValidation(FValidationPanel panel) {
+              /*
+              FocList list = getList();
+              list.reloadFromDB();
+              DateLine.resetDescription();
+              */
+              reloadList();
+            }
+            public void postCancelation(FValidationPanel panel) {
+              /*
+              FocList list = getList();
+              list.reloadFromDB();
+              DateLine.resetDescription();
+              */
+              reloadList();
+            }
+          });
+        }
+
+        selectionPanel.requestFocusOnCurrentItem();
+        selectionPanel.showEditButton(false);
+      }
+    }
+    mainPanel.setFrameTitle(MultiLanguage.getString(FocLangKeys.CASH_CASHDESK));
+    
+    return mainPanel;
+  }
+
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // DESCRIPTION
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+
+  private static FocDesc focDesc = null;
+
+  public static final int FLD_NAME = 1;
+  public static final int FLD_USER = 2;
+  public static final int FLD_SUPER_USER = 3;
+  
+  public static FocDesc getFocDesc() {
+    if (focDesc == null) {
+      FField focFld = null;
+      focDesc = new FocDesc(CashDesk.class, FocDesc.DB_RESIDENT, "CASHDESK", false);
+
+      focFld = focDesc.addReferenceField();
+
+      focFld = new FCharField("NAME", "Name", FLD_NAME, true, 20);
+      focDesc.addField(focFld);
+      focFld.setLockValueAfterCreation(false);
+      
+      FObjectField focObjFld = new FObjectField("USER", "User", FLD_USER, false, FocUser.getFocDesc(), "USR_");
+      focObjFld.setComboBoxCellEditor(FocUser.FLD_NAME);
+      focObjFld.setSelectionList(FocUser.getList(FocList.NONE));
+      focObjFld.setNullValueMode(FObjectField.NULL_VALUE_ALLOWED_AND_SHOWN);
+      focDesc.addField(focObjFld);
+    }
+    return focDesc;
+  }
+}

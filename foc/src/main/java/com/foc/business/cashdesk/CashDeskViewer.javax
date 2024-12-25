@@ -1,0 +1,591 @@
+// PROPERTIES
+// INSTANCE
+//    MAIN
+// STATIC LISTENERS
+// CONSTRUCT
+// ADJUST
+// GUI
+//    HEADER PANEL
+//    TABBED PANEL
+//    PANEL
+// LIST
+// DESCRIPTION
+// RATES ARRAY
+
+/*
+ * Created on 01-Feb-2005
+ */
+package b01.foc.business.cashdesk;
+
+import java.sql.Date;
+import java.util.Iterator;
+import java.awt.*;
+
+import b01.foc.*;
+import b01.foc.business.currency.Currency;
+import b01.foc.business.multilanguage.MultiLanguage;
+import b01.foc.desc.*;
+import b01.foc.desc.field.*;
+import b01.foc.admin.FocGroupDesc;
+import b01.foc.event.FValidationListener;
+import b01.foc.gui.*;
+import b01.foc.list.*;
+import b01.foc.property.*;
+
+/**
+ * @author 01Barmaja
+ */
+public class CashDeskViewer extends FocObject {
+  
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // INSTANCE
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  
+  public static final int VIEW_SELECT_CASH_DESK = 0;
+  public static final int VIEW_ALL = 1;
+
+  private Date lastDateLimit = null;
+  private boolean adjustingDoNotReact = false;
+  
+  private FGLabel firstDateLabel = null;
+  private FGLabel lastDateLabel = null;  
+  private Component lastDateComponent = null;
+
+  
+  // ---------------------------------
+  //    MAIN
+  // ---------------------------------
+
+  public CashDeskViewer(FocConstructor constr) {
+    super(constr);
+
+    FObject cashDeskProp = new FObject(this, FLD_CASHDESK, null) ;
+    
+    FDate firstDate = new FDate(this, FLD_FIRST_DATE, Globals.getApp().getSystemDate()) ;
+    FDate lastDate = new FDate(this, FLD_LAST_DATE, Globals.getApp().getSystemDate()) ;
+    FBoolean isInterval = new FBoolean(this, FLD_IS_INTERVAL_MODE, false) ;
+    
+    FocList relCurrList = new FocList(this, getRelevantCurencyLink(), null);
+    new FList(this, FLD_RELEVANT_CURRENCY_LIST, relCurrList);
+    
+    cashDeskProp.addListener(getCashDeskListener());
+    firstDate.addListener(getDatesListener());
+    lastDate.addListener(getDatesListener());
+    isInterval.addListener(getIntervalListener());
+    
+  }
+
+  public void dispose(){
+    lastDateLimit = null;
+    firstDateLabel = null;
+    lastDateLabel = null;  
+    lastDateComponent = null;
+    super.dispose();
+  }
+  
+  public CashDesk getCashDesk(){
+    FObject str = (FObject)getFocProperty(FLD_CASHDESK);
+    return (CashDesk) str.getObject();
+  }
+
+  public void setCashDesk(CashDesk cashDesk){
+    FObject str = (FObject)getFocProperty(FLD_CASHDESK);
+    str.setObject(cashDesk);
+  }
+  
+  public boolean isIntervalMode(){
+    FBoolean str = (FBoolean)getFocProperty(FLD_IS_INTERVAL_MODE);
+    return (boolean) str.getBoolean();
+  }
+  
+  public Date getFirstDate(){
+    FDate str = (FDate)getFocProperty(FLD_FIRST_DATE);
+    return str.getDate();
+  }
+
+  public void setFirstDate(Date date){
+    FDate str = (FDate)getFocProperty(FLD_FIRST_DATE);
+    str.setDate(date);
+  }
+  
+  public Date getLastDate(){
+    FDate str = (FDate)getFocProperty(FLD_LAST_DATE);
+    return str.getDate();
+  }
+
+  public void setLastDate(Date date){
+    FDate str = (FDate)getFocProperty(FLD_LAST_DATE);
+    str.setDate(date);
+  }  
+  
+  public FocList getRelevantCurrencyList(){
+    FList str = (FList)getFocProperty(FLD_RELEVANT_CURRENCY_LIST);
+    return str.getList();
+  }
+
+  public CashDeskByCurrencyViewer findCashDeskByCurrencyViewer(Currency currency){
+    CashDeskByCurrencyViewer currViewer = null;
+    FocList focList = getRelevantCurrencyList();
+    if(focList != null){
+      currViewer = (CashDeskByCurrencyViewer) focList.searchByPropertyObjectValue(CashDeskByCurrencyViewer.FLD_CURRENCY, currency);
+    }
+    return currViewer;
+  }
+  
+  public boolean isAdjustingDoNotReact() {
+    return adjustingDoNotReact;
+  }
+  
+  public void setAdjustingDoNotReact(boolean adjustingDoNotReact) {
+    this.adjustingDoNotReact = adjustingDoNotReact;
+  }
+  
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // STATIC LISTENERS
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  
+  public static FPropertyListener cashDeskListener = null;
+  
+  public static FPropertyListener getCashDeskListener(){
+    if(cashDeskListener == null){
+      cashDeskListener = new FPropertyListener(){
+        public void propertyModified(FProperty property) {
+          CashDeskViewer viewer = (CashDeskViewer) property.getFocObject();
+          //viewer.newInternalDetailsPanel(0);
+          FPanel panel = viewer.newDetailsPanel(VIEW_ALL);
+          Globals.getDisplayManager().goBack();
+          Globals.getDisplayManager().newInternalFrame(panel);
+        }
+
+        public void dispose() {
+          // TODO Auto-generated method stub
+          
+        }
+      };
+    }
+    return cashDeskListener;
+  }
+
+  public static FPropertyListener intervalListener = null;
+  
+  public static FPropertyListener getIntervalListener(){
+    if(intervalListener == null){
+      intervalListener = new FPropertyListener(){
+        public void propertyModified(FProperty property) {          
+          CashDeskViewer viewer = (CashDeskViewer) property.getFocObject();
+          if(!viewer.isAdjustingDoNotReact()){
+            viewer.setAdjustingDoNotReact(true);
+            viewer.refreshComponentsVisibility();          
+            if(!viewer.isIntervalMode() && viewer.getFirstDate().getTime() != viewer.getLastDate().getTime()){
+              viewer.setFirstDate(viewer.getLastDate());
+            }
+            viewer.reconstruct(false);
+            viewer.setAdjustingDoNotReact(false);
+          }
+        }
+
+        public void dispose() {
+          // TODO Auto-generated method stub
+          
+        }
+      };
+    }
+    return intervalListener;
+  }
+
+  public static FPropertyListener datesListener = null;
+  
+  public static FPropertyListener getDatesListener(){
+    if(datesListener == null){
+      datesListener = new FPropertyListener(){
+        public void propertyModified(FProperty property) {
+          CashDeskViewer viewer = (CashDeskViewer) property.getFocObject();
+          if(!viewer.isAdjustingDoNotReact()){
+            viewer.setAdjustingDoNotReact(true);
+            viewer.adjust_DatesIfExceedsLimit();
+            
+            Date firstDate = viewer.getFirstDate();
+            Date lastDate = viewer.getLastDate();
+
+            int modifiedPropId = property.getFocField().getID();
+
+            if(firstDate.compareTo(lastDate) > 0){
+              if(modifiedPropId == FLD_FIRST_DATE){
+                viewer.setLastDate(firstDate);
+              }else if(modifiedPropId == FLD_LAST_DATE){
+                viewer.setFirstDate(lastDate);
+              }
+            }
+            
+            if(!viewer.isIntervalMode() && viewer.getFirstDate().getTime() != viewer.getLastDate().getTime()){
+              if(modifiedPropId == FLD_FIRST_DATE){
+                viewer.setLastDate(firstDate);
+              }else if(modifiedPropId == FLD_LAST_DATE){
+                viewer.setFirstDate(lastDate);
+              }
+            }
+            viewer.reconstruct(false);
+            viewer.setAdjustingDoNotReact(false);
+          }
+        }
+
+        public void dispose() {
+          // TODO Auto-generated method stub
+          
+        }
+      };
+    }
+    return datesListener;
+  }
+  
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // ADJUST
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+
+  public void adjust_DatesIfExceedsLimit(){
+    if(getCashDesk() != null && getCashDesk().getCurrentUserAccess() != FocGroupDesc.CASH_ACCESS_COMPLETE){
+      if(getFirstDate().compareTo(lastDateLimit) > 0){
+        setFirstDate(lastDateLimit);
+      }
+      if(getLastDate().compareTo(lastDateLimit) > 0){
+        setLastDate(lastDateLimit);
+      }
+    }
+  }
+  
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // CONSTRUCT
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+    
+  public Date construct_ComputeMaxDate(boolean displayMessage){
+    FocList byCurrList = getRelevantCurrencyList();
+    if(byCurrList != null){
+      lastDateLimit = new Date(Globals.getApp().getSystemDate().getTime());
+      for(int i=0; i<byCurrList.size(); i++){
+        CashDeskByCurrencyViewer byCurr = (CashDeskByCurrencyViewer) byCurrList.getFocObject(i);
+        if(byCurr != null){
+          Date maxDate = byCurr.computeLastDateLimit();
+          if(maxDate.compareTo(lastDateLimit) < 0){
+            lastDateLimit.setTime(maxDate.getTime());
+          }
+        }
+      }
+      
+      if(displayMessage){
+        if(lastDateLimit.getTime() < Globals.getApp().getSystemDate().getTime()){
+          Date missingClosingDate = new Date(lastDateLimit.getTime() - CashDeskConfig.getDeskLockDelay() * Globals.DAY_TIME);
+          StringBuffer message = new StringBuffer("Cash desk '" + getCashDesk().getName() +"' was not closed at "+missingClosingDate.toString()+"\n");
+          message.append("This is why your date interval shall not exceed the "+lastDateLimit.toString()); 
+    
+          Globals.getApp().getDisplayManager().popupMessage(message.toString());
+        }
+      }
+    }
+    
+    return lastDateLimit;
+  }
+  
+  public void construct_BuildCurrencyList(){
+    FocList byCurrList = getRelevantCurrencyList();
+    FocList currList = CashDeskConfig.getCurrencyList();
+    if(currList != null){
+      byCurrList.removeAll();
+      for(int i=0; i<currList.size(); i++){
+        FocListElement listElmt = currList.getFocListElement(i);
+        if(listElmt != null && listElmt.isSelected()){
+          Currency currency = (Currency)listElmt.getFocObject();
+          if(currency != null){
+            CashDeskByCurrencyViewer byCurr = (CashDeskByCurrencyViewer) byCurrList.newEmptyItem();
+            byCurrList.add(byCurr);
+            byCurr.setCurrency(currency);
+          }
+        }
+      }
+    }
+  }
+  
+  public void construct_ResetCurrencyList(){
+    FocList relevantCurrencyList = getRelevantCurrencyList();
+    if(relevantCurrencyList != null){
+      Iterator iter = relevantCurrencyList.focObjectIterator();
+      while(iter != null && iter.hasNext()){
+        CashDeskByCurrencyViewer byCurr = (CashDeskByCurrencyViewer) iter.next();
+        if(byCurr != null){
+          byCurr.resetAll();
+        }
+      }
+    }
+  }
+
+  public void reconstruct(boolean displayMessage){
+    construct_ComputeMaxDate(displayMessage);
+    adjust_DatesIfExceedsLimit();
+    construct_ResetCurrencyList();
+  }
+
+  public void construct(boolean displayMessage){
+    construct_BuildCurrencyList();
+    reconstruct(displayMessage);
+  }
+  
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // GUI
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  
+  // ---------------------------------
+  //    HEADER PANEL
+  // ---------------------------------
+
+  public void refreshComponentsVisibility(){
+    if(firstDateLabel != null){
+      if(isIntervalMode()){
+        firstDateLabel.setText(MultiLanguage.getString(FocLangKeys.CASH_FIRST_DATE));
+        lastDateLabel.setVisible(true);
+        lastDateComponent.setVisible(true);
+      }else{
+        firstDateLabel.setText(MultiLanguage.getString(FocLangKeys.CASH_DATE));
+        lastDateLabel.setVisible(false);
+        lastDateComponent.setVisible(false);
+      }
+    }
+  }
+  
+  public FPanel newHeaderPanel() {
+    FPanel panel = new FPanel();
+    
+    Component comp = null;
+      
+    comp = getGuiComponent(FLD_CASHDESK);
+    comp.setEnabled(false);
+    panel.add(MultiLanguage.getString(FocLangKeys.CASH_CASHDESK), comp, 0, 0);
+
+    comp = getGuiComponent(FLD_IS_INTERVAL_MODE);
+    panel.add(comp, 2, 0);
+    
+    firstDateLabel = new FGLabel(MultiLanguage.getString(FocLangKeys.CASH_FIRST_DATE)); 
+    panel.add(firstDateLabel, 3, 0);
+    
+    comp = (Component) getGuiComponent(FLD_FIRST_DATE);
+    panel.add(comp, 4, 0);
+
+    lastDateLabel = new FGLabel(MultiLanguage.getString(FocLangKeys.CASH_LAST_DATE)); 
+    panel.add(lastDateLabel, 5, 0);
+    
+    lastDateComponent = (Component) getGuiComponent(FLD_LAST_DATE);
+    panel.add(lastDateComponent, 6, 0);
+    
+    refreshComponentsVisibility();
+    
+    return panel;
+  }
+
+  // ---------------------------------
+  //    TABBED PANEL
+  // ---------------------------------
+
+  public FGTabbedPane newTabbedPanel() {
+    FGTabbedPane tabbedPanel = null; 
+    
+    FocList relevantCurrencies = getRelevantCurrencyList();
+    if(relevantCurrencies != null && relevantCurrencies.size() > 0){
+      tabbedPanel = new FGTabbedPane();
+      for(int i=0; i<relevantCurrencies.size(); i++){
+        CashDeskByCurrencyViewer byCurr = (CashDeskByCurrencyViewer) relevantCurrencies.getFocObject(i);
+        if(byCurr != null){
+          FPanel byCurrPanelContainer = new FPanel();
+          byCurr.putInPanel(byCurrPanelContainer);
+          Currency curr = byCurr.getCurrency();
+          tabbedPanel.add(curr.getName(), byCurrPanelContainer);
+        }
+      }
+    }
+  
+    return tabbedPanel;
+  }  
+  
+  // ---------------------------------
+  //    PANEL
+  // ---------------------------------
+
+  public FPanel newInternalDetailsPanel(int viewID) {
+    construct(true);
+    FPanel internalPanel = new FPanel();
+    
+    FPanel headerPanel = newHeaderPanel();
+    headerPanel.setFill(FPanel.FILL_NONE);
+    internalPanel.add(headerPanel, 0, 0, GridBagConstraints.WEST);
+    
+    internalPanel.add(newTabbedPanel(), 0, 1);
+    
+    FValidationPanel validPanel = internalPanel.showValidationPanel(true);
+    if(validPanel != null){
+      validPanel.setValidationType(FValidationPanel.VALIDATION_OK);
+      validPanel.setValidationListener(new FValidationListener(){
+
+        private void validateCashMovements(){
+          FocList byCurrLst = getRelevantCurrencyList();
+          if(byCurrLst != null){
+            for(int i=0; i<byCurrLst.size(); i++){
+              CashDeskByCurrencyViewer byCurr = (CashDeskByCurrencyViewer) byCurrLst.getFocObject(i);
+              if(byCurr != null){
+                byCurr.getMovementList().commitStatusToDatabaseWithPropagation();
+              }
+            }
+          }
+        }
+        
+        public boolean proceedValidation(FValidationPanel panel) {
+          validateCashMovements();
+          return true;
+        }
+
+        public boolean proceedCancelation(FValidationPanel panel) {
+          validateCashMovements();
+          return true;
+        }
+
+        public void postValidation(FValidationPanel panel) {
+          getThis().dispose();
+        }
+
+        public void postCancelation(FValidationPanel panel) {
+          getThis().dispose();
+        }
+        
+      });
+    }
+    
+    internalPanel.setMainPanelSising(FPanel.FILL_BOTH);
+    return internalPanel;
+  }
+  
+  public FPanel newDetailsPanel(int viewID) {
+    FPanel panel = null;
+    
+    if(viewID == VIEW_SELECT_CASH_DESK){
+      FField field = getFocDesc().getFieldByID(FLD_CASHDESK);
+      FocList selectionList = field.getSelectionList();
+      if(selectionList.size() == 1){
+        CashDesk cashDesk = (CashDesk)selectionList.getFocObject(0);
+        FProperty cashDesckProp = getFocProperty(FLD_CASHDESK);
+        boolean isdesactivateListeners = cashDesckProp.isDesactivateListeners();
+        cashDesckProp.setDesactivateListeners(true);
+        setCashDesk(cashDesk);
+        cashDesckProp.setDesactivateListeners(isdesactivateListeners);
+        viewID = VIEW_ALL;
+      }
+    }
+    
+    switch (viewID){
+    case VIEW_SELECT_CASH_DESK :
+      panel = newDetailPanelSelectUser();
+      break;
+    case VIEW_ALL:
+      panel = newDetailsPanelAll();
+    }
+    return panel;
+  }
+
+  private FPanel newDetailsPanelAll() {
+    FPanel mainContainer = new FPanel();
+    mainContainer.add(newInternalDetailsPanel(0));
+    mainContainer.setMainPanelSising(FPanel.FILL_BOTH);
+    return mainContainer;
+  }
+  
+  private FPanel newDetailPanelSelectUser(){
+    //FocUser user = Globals.getApp().getUser();
+    
+    FPanel panel = new FPanel();
+    Component comp = getGuiComponent(FLD_CASHDESK);
+    String comboBoxlabel = MultiLanguage.getString(FocLangKeys.CASH_SELECT_USER);
+    panel.add(comboBoxlabel,comp,0,0);
+    FValidationPanel validPanel = panel.showValidationPanel(true);
+    validPanel.setValidationType(FValidationPanel.VALIDATION_OK);
+    validPanel.setValidationButtonLabel("Cancel");
+    validPanel.setValidationListener(new FValidationListener(){
+
+      public void postCancelation(FValidationPanel panel) {
+      }
+
+      public void postValidation(FValidationPanel panel) {
+      }
+
+      public boolean proceedCancelation(FValidationPanel panel) {
+        return true;
+      }
+
+      public boolean proceedValidation(FValidationPanel panel) {
+        // TODO Auto-generated method stub
+        return true;
+      }
+      
+      
+    });
+    return panel;
+  }
+
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // DESCRIPTION
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+
+  private static FocDesc focDesc = null;
+
+  public static final int FLD_CASHDESK = 1;
+  public static final int FLD_FIRST_DATE = 2;
+  public static final int FLD_LAST_DATE = 3;
+  public static final int FLD_IS_INTERVAL_MODE = 4;
+  public static final int FLD_RELEVANT_CURRENCY_LIST = 5;
+  
+  private static FocLink relevantCurencyLink = null;
+  
+  private static FocLink getRelevantCurencyLink(){
+    if(relevantCurencyLink == null){
+      relevantCurencyLink = new FocLinkOne2N(getFocDesc(), CashDeskByCurrencyViewer.getFocDesc());      
+    }
+    return relevantCurencyLink;
+  }
+  
+  public static FocDesc getFocDesc() {
+    if (focDesc == null) {
+      FField focFld = null;
+      focDesc = new FocDesc(CashDeskViewer.class, FocDesc.NOT_DB_RESIDENT, "CASHDESK_VIEWER", false);
+
+      FObjectField focObjFld = new FObjectField("CASH_DESK", "Cash desk", FLD_CASHDESK, false, CashDesk.getFocDesc(), "CASH_");
+      focObjFld.setDBResident(false);
+      focObjFld.setComboBoxCellEditor(CashDesk.FLD_NAME);
+      focObjFld.setSelectionList(CashDesk.getList(FocList.NONE));
+      focObjFld.setNullValueMode(FObjectField.NULL_VALUE_ALLOWED_AND_SHOWN);
+      focDesc.addField(focObjFld);
+
+      focFld = new FDateField("FDATE", "Date", FLD_FIRST_DATE, false);
+      focFld.setDBResident(false);
+      focDesc.addField(focFld);
+
+      focFld = new FDateField("LDATE", "Date", FLD_LAST_DATE, false);
+      focFld.setDBResident(false);
+      focDesc.addField(focFld);
+      
+      focFld = new FBoolField("IS_INTERVAL", MultiLanguage.getString(FocLangKeys.CASH_INTERVAL_MODE), FLD_IS_INTERVAL_MODE, false);
+      focFld.setDBResident(false);
+      focDesc.addField(focFld);
+      
+      FListField relevantCurrencyList = new FListField("CURR_LIST", "Currency list", FLD_RELEVANT_CURRENCY_LIST, getRelevantCurencyLink());
+      relevantCurrencyList.setDBResident(false);
+      focDesc.addField(relevantCurrencyList);
+    }
+    return focDesc;
+  }
+}

@@ -1,0 +1,306 @@
+package b01.foc.desc.formula.formula;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.StringTokenizer;
+import b01.foc.Globals;
+import b01.foc.desc.FocDesc;
+import b01.foc.desc.FocObject;
+import b01.foc.desc.formula.fucntion.Function;
+import b01.foc.desc.formula.fucntion.SimpleOperand;
+
+public class CopyOfFormula {
+	private String                string           = null;
+	private String                formatedString   = null;
+	private Function              mainFunction     = null; 
+	private FunctionFactory       functionFactory  = null;
+	private FocDesc               focDesc          = null;
+	//private FocObject           currentFocObject = null;
+  private FocObject             formulaFocObject = null;
+	//private int                 outputFieldId    =    0;
+	private ArrayList<Function>   usedFunctionsArray   = null; 
+	
+	public CopyOfFormula(FocDesc focDesc, String string){
+		usedFunctionsArray = new ArrayList<Function>();
+		setFocDesc(focDesc);
+		//setOutputField(outputFieldId);
+		setString(string);
+		computeFormatedString();
+	}
+	
+	public void dispose(){
+		string           = null;
+		formatedString   = null;
+		mainFunction     = null; 
+		functionFactory  = null;
+		//currentFocObject = null;
+		focDesc          = null;
+    formulaFocObject = null;
+		disposeUsedFunctionsArray();
+	}
+	
+	private void disposeUsedFunctionsArray(){
+		if(usedFunctionsArray != null){
+			Iterator<Function> iter = usedFunctionsArray.iterator();
+			while(iter != null && iter.hasNext()){
+				Function function = iter.next();
+				if(function != null){
+					function.dispose();
+				}
+			}
+		}
+		usedFunctionsArray.clear();
+		usedFunctionsArray = null;
+	}
+	
+	private String getSpecialCharacters(){
+		return getFunctionFuctory().getSpecialCharactersForFormulaLevel0Format();
+	}
+	
+	public void setString(String string){
+		this.string = string;
+	}
+	
+	public String getString(){
+		return this.string;
+	}
+	
+	public void setFormatedString(String formatedString){
+		this.formatedString = formatedString;
+	}
+	
+	public String getFormatedString(){
+		return this.formatedString;
+	}
+	
+	public Function getMainFunction() {
+		return mainFunction;
+	}
+	
+	/*public void setCurrentFocObject(FocObject currentFocObject){
+		this.currentFocObject = currentFocObject;
+	}
+	
+	public FocObject getCurrentFocObject(){
+		return this.currentFocObject;
+	}*/
+	
+	public void setFocDesc(FocDesc focDesc){
+		this.focDesc = focDesc;
+	}
+	
+	public FocDesc getFocDesc(){
+		return this.focDesc;
+	}
+	
+	/*private void setOutputField(int outputFieldId){
+		this.outputFieldId = outputFieldId;
+	}
+	
+	private int getOutputFieldId(){
+		return this.outputFieldId;
+	}*/
+	
+	/*private void putValueInOutputField(Object value){
+		FocObject currentFocObject = getCurrentFocObject();
+		if(currentFocObject != null){
+			FProperty outputProperty = currentFocObject.getFocProperty(getOutputFieldId());
+			if(outputProperty != null){
+				//outputProperty.setObject(value);
+				outputProperty.setString(String.valueOf(value));
+			}
+		}
+	}*/
+
+	public void setMainFunction(Function mainFunction) {
+		if(mainFunction != null){
+			this.mainFunction = mainFunction;
+			this.mainFunction.setFormula(this);
+		}
+		
+	}
+	
+	private FunctionFactory getFunctionFuctory(){
+		if(this.functionFactory == null){
+			this.functionFactory = FunctionFactory.getInstance();
+		}
+		return this.functionFactory;
+	}
+	
+	private void computeFormatedString(){
+		String formulaLevel0Format = null;
+		FFormulaTree formulaTree = new FFormulaTree(getString());
+		formulaLevel0Format = formulaTree.getFormulaLevel0Format();
+		formulaTree.dispose();
+		setFormatedString(formulaLevel0Format);
+		buildFunctionHierarchy();
+	}
+	
+	/*public void compute(){
+		FunctionFactory functionFactory = getFucntionFuctory();
+		ArrayList<Function> functionsArray = new ArrayList<Function>();
+		int index = -1;
+		int status = 0;
+		StringTokenizer tokanizer = new StringTokenizer(getFormatedString(), getSpecitalCharacters(),true);
+		while(tokanizer.hasMoreElements()){
+			String token = (String)tokanizer.nextElement();
+			System.out.println(token);
+			switch(status){
+			case 0:
+				Function function = functionFactory.getFunction(token);
+				if(function != null){
+					setMainFunction(function);
+					functionsArray.add(function);
+					index++;
+				}
+				status = 1;
+				break;
+			case 1:
+				if(token.equals(OPEN_PARENTHESIS)){
+					status = 2;
+				}
+				break;
+			case 2:
+				Function previousFunction = functionsArray.get(index);
+				function = functionFactory.getFunction(token);
+				if(function != null){
+					previousFunction.addOperand(function);
+					functionsArray.add(function);
+					index++;
+					status = 1;
+				}else{
+					SimpleOperand simpleOperand = new SimpleOperand(token);
+					previousFunction.addOperand(simpleOperand);
+					status = 3;
+				}
+				break;
+			case 3:
+				if(token.equals(ARGUMENT_SEPARATOR)){
+					status = 2;
+				}else if(token.equals(CLOSE_PARENTHESIS)){
+					index --;
+					status = 4;
+				}
+				break;
+			case 4:
+				if(token.equals(ARGUMENT_SEPARATOR)){
+					status = 2;
+				}else if(token.equals(CLOSE_PARENTHESIS)){
+					index--;
+				}
+				break;
+			}
+			
+		}
+	}*/
+	
+	private void buildFunctionHierarchy(){
+		FunctionFactory functionFactory = getFunctionFuctory();
+		ArrayList<Function> functionsArray = new ArrayList<Function>();
+		//int index = -1;
+		int status = 0;
+		StringTokenizer tokanizer = new StringTokenizer(getFormatedString(), getSpecialCharacters(),true);
+		while(tokanizer.hasMoreElements()){
+			String token = (String)tokanizer.nextElement();
+			Globals.logDebug(token);
+			if(!token.equals(FunctionFactory.SPACE)){// if we have a space character we skip it cause in any statsu s : s + " " -> s
+				switch(status){
+				case 0:
+					Function function = functionFactory.getFunction(token);
+					if(function != null){
+						setMainFunction(function);
+						functionsArray.add(function);
+						usedFunctionsArray.add(function);
+						//index++;
+					}
+					status = 1;
+					break;
+				case 1:
+					if(token.equals(FunctionFactory.OPEN_PARENTHESIS)){
+						status = 2;
+					}
+					break;
+				case 2:
+					Function previousFunction = functionsArray.get(functionsArray.size() - 1);
+					function = functionFactory.getFunction(token);
+					if(function != null){
+						function.setFormula(this);
+						previousFunction.addOperand(function);
+						functionsArray.add(function);
+						//index++;
+						status = 1;
+					}else{
+						SimpleOperand simpleOperand = new SimpleOperand(token);
+						simpleOperand.setFormula(this);
+						previousFunction.addOperand(simpleOperand);
+						status = 3;
+					}
+					break;
+				case 3:
+					if(token.equals(FunctionFactory.ARGUMENT_SEPARATOR)){
+						status = 2;
+					}else if(token.equals(FunctionFactory.CLOSE_PARENTHESIS)){
+						//index --;
+						functionsArray.remove(functionsArray.size() - 1);
+						status = 4;
+					}
+					break;
+				case 4:
+					if(token.equals(FunctionFactory.ARGUMENT_SEPARATOR)){
+						status = 2;
+					}else if(token.equals(FunctionFactory.CLOSE_PARENTHESIS)){
+						//index--;
+						functionsArray.remove(functionsArray.size() - 1);
+					}
+					break;
+				}
+			}
+		}
+	}
+	
+	public boolean computeUponConstruction(){
+		return mayNotComputeAutomaticly();
+	}
+	
+	private boolean mayNotComputeAutomaticly(){
+		boolean mayNot = false;
+		if(this.usedFunctionsArray != null){
+			Iterator<Function> iter = this.usedFunctionsArray.iterator();
+			while(iter != null && iter.hasNext() && !mayNot){
+				Function function = iter.next();
+				if(function != null && function.needsManualNotificationToCompute()){
+					mayNot = true;
+				}
+			}
+		}
+		return mayNot;
+	}
+	
+	public Object compute(AbstractFormulaContext context){
+		Object resultObject = null;
+		Function mainFunction = getMainFunction();
+		if(mainFunction != null){
+			resultObject = mainFunction.compute();
+			//putValueInOutputField(resultObject);
+			String resultStr = String.valueOf(resultObject);
+			Globals.logDebug("Result : " + resultStr);
+		}
+		return resultObject; 
+	}
+
+	/*public void propertyModified(FProperty property) {
+		FocObject focObject = property.getFocObject();
+		if(focObject != null){
+			//setCurrentFocObject(focObject);
+		}
+		compute();
+	}*/
+
+  public FocObject getFormulaFocObject() {
+    return formulaFocObject;
+  }
+
+  public void setFormulaFocObject(FocObject formulaFocObject) {
+    this.formulaFocObject = formulaFocObject;
+  }
+}

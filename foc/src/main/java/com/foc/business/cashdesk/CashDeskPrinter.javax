@@ -1,0 +1,504 @@
+// INSTANCE
+//    MAIN
+//    PANEL
+// PRINT
+//    HEADER
+//    OPEN CLOSE
+//    CASH MOVEMENTS
+//    TOTALS
+//    SIGNATURE
+//    REPORTS
+// DESCRIPTION
+
+/*
+ * Created on 01-Feb-2005
+ */
+package b01.foc.business.cashdesk;
+
+import b01.foc.*;
+import b01.foc.business.currency.Currency;
+import b01.foc.business.multilanguage.AppLanguage;
+import b01.foc.business.multilanguage.MultiLanguage;
+import b01.foc.desc.*;
+import b01.foc.desc.field.*;
+import b01.foc.gui.*;
+import b01.foc.list.*;
+import b01.foc.print.*;
+import b01.foc.property.*;
+
+import java.awt.*;
+import java.awt.event.*;
+import java.text.NumberFormat;
+
+/**
+ * @author 01Barmaja
+ */
+public class CashDeskPrinter extends FocObject {
+   
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // INSTANCE
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  
+  public static Font _font_title = null;
+  public static Font _font_big = null; 
+  public static Font _font_label = null;
+  public static Font _font_small = null;
+  public static Color _total_background = null;
+  public static Color _category_background = null;
+  public static Color _title_background = null;
+  public static BorderSetup _category_left_border = null;
+  public static BorderSetup _category_right_border = null;
+  public static BorderSetup _category_mid_border = null;
+  public static NumberFormat _numFmt = null;
+  
+  private boolean doPrint = false;
+  //private JDialog dialog = null;
+  private CashDeskViewer viewer = null;
+  private CashDeskByCurrencyViewer byCurr = null;
+
+  // ---------------------------------
+  //    MAIN
+  // ---------------------------------
+  
+  public CashDeskPrinter(FocConstructor constr) {
+    super(constr);
+
+    new FString(this, FLD_SIGNATURE, "");
+    new FBoolean(this, FLD_PRINT_EXTENSION_FIELDS, true);
+    new FBoolean(this, FLD_PRINT_COMPUTED_CLOSING, true);
+    
+    Font defaultFont = FPReport.getDefaultFont();
+
+    if(_font_title == null){
+      _font_title = defaultFont.deriveFont(Font.BOLD, (float)16.0);
+      _font_big = defaultFont.deriveFont((float)12.0);
+      _font_label = defaultFont.deriveFont(Font.BOLD, (float)10.0);
+      _font_small = defaultFont.deriveFont((float)10.0);
+      _category_background = Color.YELLOW;
+      _title_background = Color.PINK;
+      _total_background = Color.PINK;
+      
+      _category_left_border = new BorderSetup(true, true, true, false);
+      _category_right_border = new BorderSetup(true, true, false, true);
+      _category_mid_border = new BorderSetup(true, true, false, false);
+      
+      AppLanguage eng = MultiLanguage.getLanguageAt(1);
+      _numFmt = NumberFormat.getNumberInstance(eng.getLocale());
+    }
+  }
+  
+  public void setCashDeskByCurrencyViewer(CashDeskByCurrencyViewer byCurr){
+    this.byCurr = byCurr;
+    this.viewer = (CashDeskViewer) byCurr.getMasterObject();
+  }
+
+  public boolean getDoPrint(){
+    return doPrint;
+  }
+
+  public String getSignature(){
+    FString printInvOnlyProp = (FString)getFocProperty(FLD_SIGNATURE);
+    return printInvOnlyProp.getString();
+  }
+
+  public boolean isPrintExtensionFields(){
+    FBoolean isPrintExtensionProp = (FBoolean)getFocProperty(FLD_PRINT_EXTENSION_FIELDS);
+    return isPrintExtensionProp.getBoolean();
+  }
+
+  public boolean isPrintComputedClosing(){
+    FBoolean isPrintExtensionProp = (FBoolean)getFocProperty(FLD_PRINT_COMPUTED_CLOSING);
+    return isPrintExtensionProp.getBoolean();
+  }
+
+  public void popupDialog(){
+    Globals.getDisplayManager().popupDialog(newDetailsPanel(0), "Print", true);
+  }
+  
+  // ---------------------------------
+  //    PANEL
+  // ---------------------------------
+  
+  public FPanel newDetailsPanel(int viewID) {
+    FPanel panel = new FPanel();
+    try {
+      //Component comp = (Component) getGuiComponent(FLD_PRINT_EXTENSION_FIELDS);
+      //panel.add("Print extension fields", comp, 0, 0);
+
+      Component comp = (Component) getGuiComponent(FLD_PRINT_COMPUTED_CLOSING);
+      panel.add(comp, 0, 0, 2, 1);
+      
+      comp = (Component) getGuiComponent(FLD_SIGNATURE);
+      panel.add("Signature", comp, 0, 1);
+
+      FPanel buttonsPanel = new FPanel();
+      
+      FGButton previewsButton = new FGButton("Previews");      
+      FGButton doPrintButton = new FGButton("Print"); 
+      FGButton cancelButton = new FGButton("Quit");            
+      
+      buttonsPanel.add(previewsButton, 0, 0, 1, 1);
+      buttonsPanel.add(doPrintButton, 1, 0, 1, 1);
+      buttonsPanel.add(cancelButton, 2, 0, 1, 1);
+      
+      panel.add(buttonsPanel, 0, 4, 2, 1);
+      
+      previewsButton.addActionListener(new ActionListener(){
+        public void actionPerformed(ActionEvent e){
+          FPReport rep = createReport();
+          rep.launchPreviews();
+        }
+      });
+      
+      doPrintButton.addActionListener(new ActionListener(){
+        public void actionPerformed(ActionEvent e){
+          FPReport rep = createReport();
+          rep.launchPrinting();
+          Globals.getDisplayManager().goBack();
+        }
+      });
+
+      cancelButton.addActionListener(new ActionListener(){
+        public void actionPerformed(ActionEvent e){
+          Globals.getDisplayManager().goBack();
+        }
+      });
+      
+    } catch (Exception e) {
+      Globals.logException(e);
+    }
+
+    return panel;
+  }
+
+  public static FPanel newBrowsePanel(FocList list, int viewID) {
+    return null;
+  }  
+
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // PRINT
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo   
+  
+  // ---------------------------------
+  //    HEADER
+  // ---------------------------------
+  
+  private FPComponent print_NewHeaderContainer(){
+    FPRowListContainer mainListCont = new FPRowListContainer();
+    mainListCont.setRowFill(true);
+
+    FPTableContainer leftCont = new FPTableContainer();
+    leftCont.setRowFill(true);
+    leftCont.setXAllignment(FPComponent.LEFT);
+
+    FPTableContainer rightCont = new FPTableContainer();
+    rightCont.setRowFill(true);
+    rightCont.setXAllignment(FPComponent.RIGHT);
+    
+    FProperty fDate = viewer.getFocProperty(CashDeskViewer.FLD_FIRST_DATE);
+    FProperty lDate = viewer.getFocProperty(CashDeskViewer.FLD_LAST_DATE);
+        
+    //Left table
+    leftCont.getTitleRow().add(null);
+    leftCont.getTitleRow().add(null);
+    
+    FPRow lRow = leftCont.newAddedRow();
+    lRow.setRowFill(false);
+    lRow.add(new FPLabel("Cash desk:", FPComponent.LEFT, _font_title));
+    lRow.add(new FPLabel(byCurr.getCashDesk().getName(), FPComponent.LEFT, _font_title));
+    
+    lRow = leftCont.newAddedRow();
+    lRow.setRowFill(false);
+    lRow.add(new FPLabel("Currency:", FPComponent.LEFT, _font_title));
+    lRow.add(new FPLabel(byCurr.getCurrency().getName(), FPComponent.LEFT, _font_title));
+    
+    //Right table
+    if(viewer.isIntervalMode()){
+      rightCont.getTitleRow().add(null);
+      rightCont.getTitleRow().add(null);
+      
+      FPRow rRow = rightCont.newAddedRow();
+      rRow.setRowFill(false);
+      rRow.add(new FPLabel("From", FPComponent.LEFT, _font_title));
+      rRow.add(new FPLabel(fDate.getString(), FPComponent.LEFT, _font_title));
+      
+      rRow = rightCont.newAddedRow();
+      rRow.setRowFill(false);
+      rRow.add(new FPLabel("To", FPComponent.LEFT, _font_title));
+      rRow.add(new FPLabel(lDate.getString(), FPComponent.LEFT, _font_title));
+    }else{
+      rightCont.getTitleRow().add(null);
+      
+      FPRow rRow = rightCont.newAddedRow();
+      rRow.setRowFill(false);
+      rRow.add(new FPLabel(fDate.getString(), FPComponent.RIGHT, _font_title));
+    }
+    
+    FPRow mainHeaderRow = mainListCont.newAddedRow();
+    mainHeaderRow.add(leftCont);
+    mainHeaderRow.add(rightCont);    
+    
+    return mainListCont;
+  }
+  
+  // ---------------------------------
+  //    OPEN CLOSE
+  // ---------------------------------
+ 
+  private FPComponent print_NewOpenCloseContainer(){
+    FPTableContainer tableContainer = new FPTableContainer();
+    tableContainer.setXSpacing(5);
+    tableContainer.setYSpacing(1);
+    tableContainer.setRowFill(false);
+    tableContainer.setXAllignment(FPComponent.LEFT);
+
+    FPRow titlesRow = tableContainer.getTitleRow();
+    titlesRow.add(null);
+    titlesRow.add(null);
+    
+    CashOpenClose open = byCurr.getCashOpening();
+    CashOpenClose close = byCurr.getCashOpening();
+    
+    FProperty openAmm = open.getFocProperty(CashOpenClose.FLD_OPEN_AMMOUNT); 
+    FProperty closeAmm = close.getFocProperty(CashOpenClose.FLD_CLOSE_AMMOUNT);
+    FDouble variationAmm = new FDouble(null, 1, closeAmm.getDouble() - openAmm.getDouble());
+    Currency curr = byCurr.getCurrency();
+    
+    FPRow row = tableContainer.newAddedRow();
+    if(open.isOpened()){
+      row.add(new FPLabel("Opened the ", FPComponent.LEFT, _font_small));
+      row.add(new FPLabel(open.getDateProperty().getString(), FPComponent.LEFT, _font_small));
+      row.add(new FPLabel(" with ", FPComponent.LEFT, _font_small));
+      row.add(new FPLabel((String)openAmm.getTableDisplayObject(_numFmt), FPComponent.RIGHT, _font_small));
+      row.add(new FPLabel(curr.getName(), FPComponent.LEFT, _font_small));
+    }else{
+      row.add(new FPLabel("Not opened the ", FPComponent.LEFT, _font_small));
+      row.add(new FPLabel(open.getDateProperty().getString(), FPComponent.LEFT, _font_small));
+    }
+
+    row = tableContainer.newAddedRow();
+    if(close.isClosed()){
+      row.add(new FPLabel("Closed the ", FPComponent.LEFT, _font_small));
+      row.add(new FPLabel(close.getDateProperty().getString(), FPComponent.LEFT, _font_small));
+      row.add(new FPLabel(" with ", FPComponent.LEFT, _font_small));
+      row.add(new FPLabel((String)closeAmm.getTableDisplayObject(_numFmt), FPComponent.RIGHT, _font_small));
+      row.add(new FPLabel(curr.getName(), FPComponent.LEFT, _font_small));
+    }else{
+      row.add(new FPLabel("Not closed the ", FPComponent.LEFT, _font_small));
+      row.add(new FPLabel(close.getDateProperty().getString(), FPComponent.LEFT, _font_small));
+    }
+
+    if(open.isOpened() && close.isClosed()){
+      row = tableContainer.newAddedRow();
+      row.add(new FPLabel(""));
+      row.add(new FPLabel(""));
+      row.add(new FPLabel(""));
+      row.add(new FPLabel((String)variationAmm.getTableDisplayObject(_numFmt), FPComponent.LEFT, _font_small));
+    }
+    
+    return tableContainer;
+  }
+
+  // ---------------------------------
+  //    CASH MOVEMENTS
+  // ---------------------------------
+  
+  private void print_FillMovementTitles(FPRow titles){
+    titles.add(new FPLabel("Date", FPComponent.LEFT, _font_label, null, _title_background));
+    titles.add(new FPLabel("Description", FPComponent.LEFT, _font_label, null, _title_background));    
+    titles.add(new FPLabel("Ammount", FPComponent.LEFT, _font_label, null, _title_background));
+    if(isPrintExtensionFields() && CashMovement.hasExtension()){
+      FInLineObjectField objField = (FInLineObjectField) CashMovement.getFocDesc().getFieldByID(CashMovement.FLD_IN_LINE_EXTENSION);
+      FocDesc focDesc = objField.getFocDesc();
+      FocFieldEnum iter = focDesc.newFocFieldEnum(FocFieldEnum.CAT_ALL, FocFieldEnum.LEVEL_PLAIN);
+      while(iter != null && iter.hasNext()){        
+        FField field = (FField) iter.next();
+        if(field.getID() != FField.REF_FIELD_ID){
+          titles.add(new FPLabel(field.getTitle(), FPComponent.LEFT, _font_label, null, _title_background));
+        }
+      }
+    }
+  }
+
+  private void print_FillMovementValues(FPRow row, CashMovement movement){
+    if(movement != null){
+      FDate date = (FDate) movement.getFocProperty(CashMovement.FLD_DATE);
+      FString description = (FString) movement.getFocProperty(CashMovement.FLD_DESCRIPTION);
+      FDouble ammount = (FDouble) movement.getFocProperty(CashMovement.FLD_AMMOUNT);
+      
+      row.add(new FPLabel(date.getString(), FPComponent.LEFT, _font_small));
+      row.add(new FPLabel(description.getString(), FPComponent.LEFT, _font_small));
+      row.add(new FPLabel((String)ammount.getTableDisplayObject(_numFmt), FPComponent.RIGHT, _font_small));
+      if(isPrintExtensionFields() && CashMovement.hasExtension()){
+        FInLineObjectField objField = (FInLineObjectField) CashMovement.getFocDesc().getFieldByID(CashMovement.FLD_IN_LINE_EXTENSION);
+        FocDesc focDesc = objField.getFocDesc();
+        FocFieldEnum iter = focDesc.newFocFieldEnum(FocFieldEnum.CAT_ALL, FocFieldEnum.LEVEL_PLAIN);
+        while(iter != null && iter.hasNext()){
+          FField field = (FField) iter.next();
+          if(field.getID() != FField.REF_FIELD_ID){
+            FProperty prop = iter.getFieldPath().getPropertyFromObject(movement.getExtensionObject());
+            row.add(new FPLabel(prop.getString(), FPComponent.CENTER, _font_label));
+          }
+        }
+      }
+    }
+  }
+
+  private FPTableContainer print_NewCashMovementsContainer(){
+    FPTableContainer container = new FPTableContainer();
+    FocList movementList = byCurr.getMovementList();
+    
+    container.setXSpacing(5);
+    container.setYSpacing(2);
+    container.setRowFill(false);
+    
+    BorderSetup borderSetup = new BorderSetup(true, true, true, true);
+    container.setDefaultBorderSetup(borderSetup);
+    
+    FPRow titles = container.getTitleRow();
+    print_FillMovementTitles(titles);
+    
+    for(int i =0; i<movementList.size(); i++){
+      CashMovement movement = (CashMovement) movementList.getFocObject(i);
+      FPRow row = container.newAddedRow();
+      print_FillMovementValues(row, movement);
+    }
+    
+    return container;
+  }
+
+  // ---------------------------------
+  //    TOTALS
+  // ---------------------------------
+
+  private FPComponent print_NewTotalsContainer(){
+    FPTableContainer tableContainer = new FPTableContainer();
+    tableContainer.setXSpacing(5);
+    tableContainer.setYSpacing(1);
+    tableContainer.setRowFill(false);
+    tableContainer.setXAllignment(FPComponent.LEFT);
+
+    FProperty totalMovements = byCurr.getFocProperty(CashDeskByCurrencyViewer.FLD_CASH_MOVEMENT_TOTAL);
+    FProperty computedClosing = byCurr.getFocProperty(CashDeskByCurrencyViewer.FLD_CASH_COMPUTED_CLOSING);
+    Currency totalCurrency = byCurr.getCurrency();
+    
+    FPRow titlesRow = tableContainer.getTitleRow();
+    titlesRow.add(null);
+    titlesRow.add(null);
+    titlesRow.add(null);
+
+    FPRow clientRow = tableContainer.newAddedRow();
+    clientRow.add(new FPLabel("Total movements:", FPComponent.RIGHT, _font_label));
+    clientRow.add(new FPLabel((String)totalMovements.getTableDisplayObject(_numFmt), FPComponent.RIGHT, _font_small));
+    clientRow.add(new FPLabel(totalCurrency.getName(), FPComponent.LEFT, _font_small));
+    
+    if(isPrintComputedClosing()){
+      clientRow = tableContainer.newAddedRow();
+      clientRow.add(new FPLabel("Computed closing:", FPComponent.RIGHT, _font_label));
+      clientRow.add(new FPLabel((String)computedClosing.getTableDisplayObject(_numFmt), FPComponent.RIGHT, _font_small));
+      clientRow.add(new FPLabel(totalCurrency.getName(), FPComponent.LEFT, _font_small));
+    }
+    
+    return tableContainer;
+  }
+  
+  // ---------------------------------
+  //    SIGNATURE
+  // ---------------------------------
+
+  private FPComponent print_NewSignatureContainer(){
+    FPRowListContainer tableContainer = new FPRowListContainer();
+    
+    tableContainer.setXSpacing(5);
+    tableContainer.setYSpacing(1);
+    tableContainer.setRowFill(true);
+
+    FPRow mainHeaderRow = tableContainer.newAddedRow();
+    mainHeaderRow.add(new FPLabel(getSignature(), FPComponent.RIGHT, _font_big));
+    
+    return tableContainer;
+  }
+  
+  // ---------------------------------
+  //    REPORTS
+  // ---------------------------------
+  
+  public FPReport createReport(){
+    FlowContainer flowCont = new FlowContainer();
+    flowCont.setYSpacing(10);
+    
+    flowCont.addComponent(print_NewHeaderContainer());
+    flowCont.addComponent(print_NewOpenCloseContainer());
+    flowCont.addComponent(print_NewCashMovementsContainer());
+    flowCont.addComponent(print_NewTotalsContainer());
+    flowCont.addComponent(print_NewSignatureContainer());
+
+    /*
+    
+    FlowContainer flowCont = new FlowContainer();
+    //flowCont.setXAllignment(FPComponent.LEFT);
+    
+    FPComponent headerContainer = print_NewHeaderContainer();
+    flowCont.addComponent(headerContainer);
+    FPComponent clientContainer = print_NewClientContainer();
+    flowCont.addComponent(clientContainer);
+    
+    FPComponent serviceContainer = print_NewServiceContainer();
+    flowCont.addComponent(serviceContainer);
+    
+    if(isPrintDocumentsInfo()){
+      flowCont.addComponent(new FPLabel("Documents", FPComponent.LEFT, _font_label));
+      FPTableContainer docTableContainer = print_NewDocContainer();
+      flowCont.addComponent(docTableContainer);
+    }
+    
+    flowCont.addComponent(new FPLabel("Charges", FPComponent.LEFT, _font_label));
+    FPTableContainer chargesTableContainer = print_NewChargeContainer();
+    flowCont.addComponent(chargesTableContainer);
+  
+    FPComponent totalsTableContainer = print_NewTotalsContainer();
+    flowCont.addComponent(totalsTableContainer);
+    flowCont.addComponent(print_NewSignatureContainer());
+    */
+    
+    PrintingData data = new PrintingData();
+    FPReport report = new FPReport(flowCont, data);
+
+    return report;
+  }  
+  
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // DESCRIPTION
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  
+  private static FocDesc focDesc = null;
+ 
+  final public static int FLD_SIGNATURE = 1;
+  final public static int FLD_PRINT_EXTENSION_FIELDS = 2;
+  final public static int FLD_PRINT_COMPUTED_CLOSING = 3;
+
+  public static FocDesc getFocDesc() {
+    if (focDesc == null) {
+      FField focFld = null;
+      focDesc = new FocDesc(CashDeskPrinter.class, FocDesc.NOT_DB_RESIDENT, "CASHDSK_PRNT", false);
+
+      focFld = focDesc.addReferenceField();
+     
+      focFld = new FCharField("SIGNATURE", "Signature", FLD_SIGNATURE, false, 50);
+      focDesc.addField(focFld);
+
+      focFld = new FBoolField("COMP_CLOSING", "Print computed closing", FLD_PRINT_COMPUTED_CLOSING, false);
+      focDesc.addField(focFld);
+      
+      focFld = new FBoolField("PRNT_EXT", "Print extension fields", FLD_PRINT_EXTENSION_FIELDS, false);
+      focDesc.addField(focFld);
+    }
+    return focDesc;
+  }  
+}

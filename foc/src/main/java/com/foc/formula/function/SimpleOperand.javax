@@ -1,0 +1,34 @@
+package b01.foc.formula.function;
+
+import b01.foc.formula.FFormulaNode;
+
+public class SimpleOperand extends Function {
+	private Object value = 0;
+	
+	public SimpleOperand(Object value){
+		setValue(value);
+	}
+	
+	public void dispose(){
+		super.dispose();
+	}
+	
+	public Object compute(){
+		return this.value;
+	}
+	
+	private void setValue(Object value){
+		this.value = value;
+	}
+
+	@Override
+	public boolean needsManualNotificationToCompute() {
+		return false;
+	}
+
+	public Object compute(FFormulaNode formulaNode) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

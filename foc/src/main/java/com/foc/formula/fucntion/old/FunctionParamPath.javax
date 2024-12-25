@@ -1,0 +1,110 @@
+package b01.foc.formula.fucntion.old;
+
+import b01.foc.desc.FocDesc;
+import b01.foc.desc.FocObject;
+import b01.foc.desc.field.FField;
+import b01.foc.desc.field.FFieldPath;
+import b01.foc.formula.Formula;
+import b01.foc.formula.FunctionFactory;
+import b01.foc.property.FAttributeLocationProperty;
+import b01.foc.property.FProperty;
+
+public class FunctionParamPath extends Function {
+	private static final String FUNCTION_NAME = "PARAMPATH";
+	private static final String OPERATOR_SYMBOL = null;
+	
+	private FFieldPath fieldPath = null;
+	
+	public void dispose(){
+		super.dispose();
+		fieldPath = null;
+	}
+	
+	public void addOperand(IOperand operand){
+		if(operand != null){
+			super.addOperand(operand);
+			putListenerToFirstPropertyOfPath();
+		}
+	}
+	
+	protected void addOperand_SUPPER(IOperand operand){
+		super.addOperand(operand);
+	}
+	
+	protected int getArgumentPositionForStringPath(){
+		return 0;
+	}
+
+	private void putListenerToFirstPropertyOfPath(){
+		IOperand operand = getOperandAt(getArgumentPositionForStringPath());
+		FocDesc focDesc = getFocDescToStartFieldPathFrom();
+		if(operand != null && focDesc != null){
+			String strPath = String.valueOf(operand.compute());
+			FFieldPath fieldPath = FAttributeLocationProperty.newFieldPath(false, strPath, focDesc);
+			this.fieldPath = fieldPath;
+			plugFormulaAsListener(fieldPath);
+		}
+	}
+
+	private FProperty getPropertyFromPath(FocObject focObject){
+		FProperty prop = null;
+		IOperand operand = getOperandAt(getArgumentPositionForStringPath());
+		FocDesc focDesc = getFocDescToStartFieldPathFrom();
+		if(operand != null && focDesc != null){
+			String strPath = String.valueOf(operand.compute());
+			prop = FAttributeLocationProperty.newFieldPathReturnProperty(false, strPath, focDesc, focObject);
+		}
+		return prop;
+	}
+	
+	public Object compute(){
+		FProperty fProperty = null;
+		FocObject focObject = getFocObjectToStartFieldPathFrom();
+		
+		fProperty = getPropertyFromPath(focObject);
+		return fProperty != null ? fProperty.getObject() : null;
+		//return 0;
+	}
+	
+	protected void plugFormulaAsListener(FFieldPath fieldPath){
+		if(getFormula() != null){
+			if(this.fieldPath != null){
+				int fieldId = this.fieldPath.get(0);
+				FocDesc focDesc = getFocDescToStartFieldPathFrom();
+				if(focDesc != null){
+					FField field = focDesc.getFieldByID(fieldId);
+					if(field != null){
+						field.addListener(getFormula());
+					}
+				}
+			}
+		}
+	}
+	
+	protected FocObject getFocObjectToStartFieldPathFrom(){
+		Formula formula = getFormula();
+		return formula != null ? formula.getCurrentFocObject() : null;
+	}
+	
+	protected FocDesc getFocDescToStartFieldPathFrom(){
+		Formula formula = getFormula();
+		return formula != null ? formula.getFocDesc() : null;
+	}
+	
+	public static String getFunctionName(){
+		return FUNCTION_NAME;
+	}
+	
+	public static String getOperatorSymbol(){
+		return OPERATOR_SYMBOL;
+	}
+	
+	public static int getOperatorPriority(){
+		return FunctionFactory.PRIORITY_NOT_APPLICABLE;
+	}
+
+	@Override
+	public boolean needsManualNotificationToCompute() {
+		return false;
+	}
+}

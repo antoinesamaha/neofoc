@@ -1,0 +1,621 @@
+// INSTANCE
+//    MAIN
+//    DATE MAP
+//    PREVIOUS CLOSING
+//    CASH OPEN CLOSE
+//    MOVEMENT LIST
+//    PANEL
+// LIST
+// DESCRIPTION
+// RATES ARRAY
+
+/*
+ * Created on 01-Feb-2005
+ */
+package b01.foc.business.cashdesk;
+
+import java.sql.Date;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+
+import javax.swing.AbstractAction;
+
+import b01.foc.*;
+import b01.foc.db.*;
+import b01.foc.admin.FocGroupDesc;
+import b01.foc.business.currency.Currency;
+import b01.foc.business.multilanguage.MultiLanguage;
+import b01.foc.desc.*;
+import b01.foc.desc.field.*;
+import b01.foc.event.FocEvent;
+import b01.foc.event.FocListener;
+import b01.foc.gui.*;
+import b01.foc.list.*;
+import b01.foc.property.*;
+
+/**
+ * @author 01Barmaja
+ */
+public class CashDeskByCurrencyViewer extends FocObject {
+
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // INSTANCE
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+ 
+  private FPanel containerPanel = null;
+  private FPanel zPanel = null;
+  
+  private FocList openCloseList = null;
+  private Date lastDateLimit = null;
+
+  private FListPanel cashMovementPanel = null; 
+  private boolean editable = false;
+  
+  // ---------------------------------
+  //    MAIN
+  // ---------------------------------
+
+  public CashDeskByCurrencyViewer(FocConstructor constr) {
+    super(constr);
+
+    new FObject(this, FLD_CURRENCY, null) ;
+    new FObject(this, FLD_CASH_OPENING, null) ;
+    new FObject(this, FLD_CASH_CLOSING, null) ;
+    new FDouble(this, FLD_CASH_PREV_CLOSING, 0) ;
+    new FDate(this, FLD_CASH_PREV_CLOSING_DATE, new java.sql.Date(0)) ;
+    FDouble movementTotal = new FDouble(this, FLD_CASH_MOVEMENT_TOTAL, 0) ;
+    new FDouble(this, FLD_CASH_COMPUTED_CLOSING, 0) ;
+    
+    //By currency list creation
+    FocList cashMovementList = new FocList(this, getMovementLink(), null);
+    FocListOrder order = new FocListOrder();
+    FFieldPath fieldPath = new FFieldPath(2);
+    fieldPath.add(CashMovement.FLD_DATE);
+    fieldPath.add(CashMovement.FLD_AMMOUNT);
+    order.addField(fieldPath);
+    cashMovementList.setListOrder(order);
+    cashMovementList.addFocListener(getMovementListListener());
+    new FList(this, FLD_CASH_MOVEMENT_LIST, cashMovementList) ;
+    
+    FocListListener cashMvtListListener = new FocListListener(cashMovementList);
+    cashMvtListListener.addProperty(FFieldPath.newFieldPath(CashMovement.FLD_AMMOUNT));
+    ListSumComputer sumInvoiced = new ListSumComputer(cashMovementList, FFieldPath.newFieldPath(CashMovement.FLD_AMMOUNT), movementTotal);
+    cashMvtListListener.addListener(sumInvoiced);
+    cashMvtListListener.startListening();
+    
+    movementTotal.addListener(getMovementTotalListener());
+  }
+
+  public Currency getCurrency(){
+    FObject str = (FObject) getFocProperty(FLD_CURRENCY);
+    return (Currency) str.getObject();
+  }
+
+  public void setCurrency(Currency curr){
+    FObject str = (FObject) getFocProperty(FLD_CURRENCY);
+    str.setObject(curr);
+  }
+
+  private FObject getCashOpeningProperty(){
+    return (FObject)getFocProperty(FLD_CASH_OPENING);
+  }
+  
+  public CashOpenClose getCashOpening(){
+    FObject str = getCashOpeningProperty();
+    return (CashOpenClose) str.getObject();
+  }
+
+  public void setCashOpening(CashOpenClose cashOpenClose){
+    FObject str = getCashOpeningProperty();
+    str.setObject(cashOpenClose);
+  }
+
+  private FObject getCashClosingProperty(){
+    return (FObject)getFocProperty(FLD_CASH_CLOSING);
+  }
+  
+  public CashOpenClose getCashClosing(){
+    FObject str = (FObject)getFocProperty(FLD_CASH_CLOSING);
+    return (CashOpenClose) str.getObject();
+  }
+
+  public void setCashClosing(CashOpenClose cashOpenClose){
+    FObject str = getCashClosingProperty();
+    str.setObject(cashOpenClose);
+  }
+  
+  public double getPreviousClosing(){
+    FDouble str = (FDouble)getFocProperty(FLD_CASH_PREV_CLOSING);
+    return str.getDouble();
+  }
+
+  public void setPreviousClosing(double ammount){
+    FDouble str = (FDouble)getFocProperty(FLD_CASH_PREV_CLOSING);
+    str.setDouble(ammount);
+  }
+
+  public void setPreviousClosingDate(Date date){
+    FDate str = (FDate)getFocProperty(FLD_CASH_PREV_CLOSING_DATE);
+    str.setDate(date);
+  }
+
+  public double getMovementTotal(){
+    FDouble str = (FDouble)getFocProperty(FLD_CASH_MOVEMENT_TOTAL);
+    return str.getDouble();
+  }
+
+  public double getComputedClosing(){
+    FDouble str = (FDouble)getFocProperty(FLD_CASH_COMPUTED_CLOSING);
+    return str.getDouble();
+  }
+
+  public void setComputedClosing(double dVal){
+    FDouble str = (FDouble)getFocProperty(FLD_CASH_COMPUTED_CLOSING);
+    str.setDouble(dVal);
+  }
+
+  public FocList getMovementList(){
+    FList fList = (FList)getFocProperty(FLD_CASH_MOVEMENT_LIST);
+    FocListOrder order = new FocListOrder();
+    order.addField(FFieldPath.newFieldPath(CashMovement.FLD_DATE));
+    order.addField(FFieldPath.newFieldPath(FField.REF_FIELD_ID));
+    FocList focList = fList.getListWithoutLoad();
+    focList.setListOrder(order);
+    return focList;
+  }
+
+  private CashDeskViewer getCashDeskViewer(){
+    return (CashDeskViewer) getMasterObject();
+  }
+  
+  public CashDesk getCashDesk(){
+    CashDeskViewer cashDeskViewer = getCashDeskViewer();
+    return cashDeskViewer.getCashDesk();
+  }
+    
+  public Date computeLastDateLimit(){
+    lastDateLimit = Globals.getApp().getSystemDate();//new Date(0);
+
+    FocList focList = getOpenCloseList();
+    for(int i=0; i<focList.size(); i++){
+      CashOpenClose oc = (CashOpenClose) focList.getFocObject(i);
+      if(oc != null){
+        Date date = oc.getDate();
+        if(!oc.isClosed()){
+          long nbDaysToSysDate = ((long)(Globals.getApp().getSystemDate().getTime() - date.getTime())) / Globals.DAY_TIME;
+          if(nbDaysToSysDate > CashDeskConfig.getDeskLockDelay()){
+            lastDateLimit = new Date(date.getTime() + CashDeskConfig.getDeskLockDelay() * Globals.DAY_TIME);
+          }
+        }
+      }
+    }
+    
+    return lastDateLimit;
+  }
+  
+  public void setEditable(boolean editable){
+    this.editable = editable;
+
+    getCashOpening();
+    CashOpenClose closing = getCashClosing();
+    
+    if(this.editable && (getCashDesk().getCurrentUserAccess() == FocGroupDesc.CASH_ACCESS_VIEWER || getCashDesk().getCurrentUserAccess() == FocGroupDesc.CASH_ACCESS_NONE)){
+      this.editable = false;
+    }
+    
+    if(this.editable && closing != null){
+      if(closing.isClosed() && !closing.isCloseNeedsValidation() && getCashDesk().getCurrentUserAccess() != FocGroupDesc.CASH_ACCESS_COMPLETE){
+        this.editable = false; 
+      }
+    }
+    
+    enableDisableComponents();
+  }
+
+  public boolean getEditable(){
+    return this.editable ;
+  }
+  
+  // ---------------------------------
+  //    STATIC LISTENERS
+  // ---------------------------------
+
+  private static FocListener movementListListener = null;
+  
+  public FocListener getMovementListListener(){
+    if(movementListListener == null){
+      movementListListener = new FocListener(){
+        public void focActionPerformed(FocEvent evt) {
+          if(evt.getID() == FocEvent.ID_ITEM_ADD){
+            CashMovement cashMovement = (CashMovement) evt.getEventSubject();
+            if(cashMovement != null){
+              CashDeskByCurrencyViewer byCurr = (CashDeskByCurrencyViewer) cashMovement.getMasterObject();
+              cashMovement.setCashDesk(byCurr.getCashDesk());
+              cashMovement.setCurrency(byCurr.getCurrency());
+              cashMovement.setDate(byCurr.getCashDeskViewer().getLastDate());
+            }
+          }
+        }
+
+        public void dispose() {
+          // TODO Auto-generated method stub
+          
+        }
+      };
+    }
+    return movementListListener;
+  }
+
+  private static FPropertyListener movementTotalListener = null;
+  
+  public FPropertyListener getMovementTotalListener(){
+    if(movementTotalListener == null){
+      movementTotalListener = new FPropertyListener(){
+        public void propertyModified(FProperty prop) {
+          if(prop != null){
+            CashDeskByCurrencyViewer byCurr = (CashDeskByCurrencyViewer) prop.getFocObject();
+            if(byCurr != null){
+              //CashOpenClose openClose = byCurr.getCashOpening();
+              //double open = openClose != null ? openClose.getOpenAmmount() : 0;
+              byCurr.setComputedClosing(byCurr.getCashOpening().getOpenAmmount() + byCurr.getMovementTotal());
+            }
+          }
+        }
+
+        public void dispose() {
+          // TODO Auto-generated method stub
+          
+        }
+      };
+    }
+    return movementTotalListener;
+  }
+
+  // ---------------------------------
+  //    DATE MAP
+  // ---------------------------------
+
+  public FocList createOpenCloseList(){
+    CashOpenClose template = newCashOpenClose(null);
+    SQLFilter filter = new SQLFilter(template, SQLFilter.FILTER_ON_SELECTED);
+    filter.addSelectedField(CashOpenClose.FLD_CASHDESK);
+    filter.addSelectedField(CashOpenClose.FLD_CURRENCY);
+    openCloseList = new FocList(this, new FocLinkSimple(CashOpenClose.getFocDesc()), filter);
+    openCloseList.loadIfNotLoadedFromDB();
+    
+    FocListOrder focListOrder = new FocListOrder();
+    focListOrder.addField(FFieldPath.newFieldPath(CashOpenClose.FLD_DATE));
+    openCloseList.setListOrder(focListOrder);
+    
+    for(int i=0; i<openCloseList.size(); i++){
+      CashOpenClose oc = (CashOpenClose) openCloseList.getFocObject(i);
+      oc.setOpenNeedsValidation(false);
+      oc.setCloseNeedsValidation(false);
+    }
+    
+    return openCloseList;
+  }
+  
+  public FocList getOpenCloseList(){
+    if(openCloseList == null){
+      openCloseList = createOpenCloseList();
+    }
+    return openCloseList;
+  }
+
+  // ---------------------------------
+  //    CASH OPEN CLOSE
+  // ---------------------------------
+  
+  private CashOpenClose newCashOpenClose(Date date){
+    return CashOpenClose.newCashOpenClose(this, getCashDesk(), getCurrency(), date);
+  }
+  
+  private CashOpenClose newCashOpenClose(boolean isClose){
+    CashDeskViewer cashDeskViewer = getCashDeskViewer();
+    return newCashOpenClose(isClose ? cashDeskViewer.getLastDate() : cashDeskViewer.getFirstDate());
+  }
+  
+  public void resetOpenCloseObjects(){
+    if(getCashDesk() != null && getCashDesk().getReference().getInteger() > 0){
+      boolean foundOpening = false;
+      boolean foundClosing = false;
+      boolean foundPreviousClosing = false;
+      
+      FocList openCloseList = getOpenCloseList();
+      CashOpenClose prevOC = null;
+      for(int i=0; i<openCloseList.size() && (!foundOpening || !foundClosing || !foundPreviousClosing); i++){
+        CashOpenClose oc = (CashOpenClose) openCloseList.getFocObject(i);
+        if(oc != null){
+          if(!foundOpening){
+            foundOpening = oc.getDate().compareTo(getCashDeskViewer().getFirstDate()) == 0;
+            if(foundOpening){
+              setCashOpening(oc);
+            }
+          }
+          if(!foundClosing){
+            foundClosing = oc.getDate().compareTo(getCashDeskViewer().getLastDate()) == 0;
+            if(foundClosing){
+              setCashClosing(oc);
+            }
+          }
+          
+          if(!foundPreviousClosing){
+            foundPreviousClosing = oc.getDate().compareTo(getCashDeskViewer().getFirstDate()) >= 0;
+            if(foundPreviousClosing){
+              if(prevOC != null && prevOC.isClosed()){
+                setPreviousClosingDate(prevOC.getDate());
+                setPreviousClosing(prevOC.getCloseAmmount());
+              }
+            }
+          }
+        }
+        prevOC = oc;
+      }
+      
+      if(!foundPreviousClosing){
+        if(prevOC != null && getCashDeskViewer().getFirstDate().compareTo(prevOC.getDate()) > 0 && prevOC.isClosed()){
+          setPreviousClosingDate(prevOC.getDate());
+          setPreviousClosing(prevOC.getCloseAmmount());
+        }else{
+          setPreviousClosingDate(new Date(0));
+          setPreviousClosing(0);
+        }
+      }
+      
+      if(!foundOpening){
+        //FocConstructor openCloseConstr = new FocConstructor(CashOpenClose.getFocDesc(), this);
+        CashOpenClose open = newCashOpenClose(false);
+        open.setCreated(true);  
+  
+        setCashOpening(open);
+      }
+      if(!foundClosing){
+        //FocConstructor openCloseConstr = new FocConstructor(CashOpenClose.getFocDesc(), this);
+        CashOpenClose close = newCashOpenClose(true);
+        close.setCreated(true);  
+  
+        setCashClosing(close);
+      }
+      
+      getMovementTotalListener().propertyModified(getFocProperty(FLD_CASH_MOVEMENT_TOTAL));
+    }
+  }
+
+  private void enableDisableComponents(){    
+    CashOpenClose opening = getCashOpening();
+    CashOpenClose closing = getCashClosing();
+    
+    if(opening != null){
+      opening.setOpeningAmmountEnabled(getEditable());
+    }
+    if(closing != null){
+      closing.setClosingAmmountEnabled(getEditable());
+    }
+    if(cashMovementPanel != null){
+      cashMovementPanel.showAddButton(getEditable());
+      //cashMovementPanel.showRemoveButton(getEditable());
+    }
+    
+    FocList list = getMovementList();
+    for(int i=0; i<list.size(); i++){
+      CashMovement cashMovement = (CashMovement) list.getFocObject(i);
+      cashMovement.setEditable(getEditable());
+    }
+    
+  }
+  
+  // ---------------------------------
+  //    MOVEMENT LIST 
+  // ---------------------------------
+  
+  public CashMovement getCashMovementTemplate(){
+    CashMovement cashMovement = null;
+
+    FocList list = getMovementList();
+    SQLFilter filter = list.getFilter();    
+    cashMovement = (CashMovement) filter.getObjectTemplate();
+    if(cashMovement == null){
+      FocConstructor constr = new FocConstructor(CashMovement.getFocDesc(), null);
+      cashMovement = new CashMovement(constr);
+      filter.setObjectTemplate(cashMovement);
+      filter.setFilterFields(SQLFilter.FILTER_ON_SELECTED);
+      filter.addSelectedField(CashMovement.FLD_CASHDESK);
+      filter.addSelectedField(CashMovement.FLD_CURRENCY);
+    }
+    cashMovement.setCashDesk(getCashDesk());
+    cashMovement.setCurrency(getCurrency());
+
+    FField dateField = CashMovement.getFocDesc().getFieldByID(CashMovement.FLD_DATE);
+    FDate firstDateProp = new FDate(null, 1, getCashDeskViewer().getFirstDate());
+    FDate lastDateProp = new FDate(null, 1, getCashDeskViewer().getLastDate());
+    StringBuffer where = new StringBuffer(dateField.getName()+">="+firstDateProp.getSqlString()+" and "+dateField.getName()+"<="+lastDateProp.getSqlString());
+    filter.setAdditionalWhere(where);
+    
+    return cashMovement;
+  }
+  
+  public void buildMovementList(){
+    FocList list = getMovementList();
+    //CashMovement cashMovementTemplate = getCashMovementTemplate();
+    
+    list.removeAll();
+    list.reloadFromDB();
+    list.setDirectImpactOnDatabase(true);
+    list.setDirectlyEditable(true);
+  }
+  
+  public void resetAll(){
+//    setEditable(!getCashDeskViewer().isIntervalMode());
+    createOpenCloseList();
+    resetOpenCloseObjects();
+    //computePreviousClosing();
+    
+    buildMovementList();
+    if(containerPanel == null){
+      //containerPanel = new FPanel();
+    }
+    putInPanel(containerPanel);
+    enableDisableComponents();
+    setEditable(!getCashDeskViewer().isIntervalMode());
+  }
+  
+  // ---------------------------------
+  //    PANEL
+  // ---------------------------------
+ 
+  @SuppressWarnings("serial")
+	public FPanel newOpenClosePanel(int viewID) {
+    FPanel panel = new FPanel();
+    Component comp = null;
+    
+    comp = getGuiComponent(FLD_CASH_OPENING);
+    panel.add(comp, 0, 0);
+
+    comp = getGuiComponent(FLD_CASH_PREV_CLOSING_DATE);
+    comp.setEnabled(false);
+    panel.add(MultiLanguage.getString(FocLangKeys.CASH_PREVIOUS_CLOSING), comp, 1, 0);
+    
+    comp = getGuiComponent(FLD_CASH_PREV_CLOSING);
+    comp.setEnabled(false);
+    panel.add(comp, 3, 0);
+
+    
+    
+    comp = getGuiComponent(FLD_CASH_CLOSING);
+    panel.add(comp, 0, 1);
+    
+    comp = getGuiComponent(FLD_CASH_COMPUTED_CLOSING);
+    comp.setEnabled(false);
+    panel.add(MultiLanguage.getString(FocLangKeys.CASH_COMPUTED_CLOSING), comp, 1, 1);
+    
+    //showHideValidationButtons();
+
+    FGButton historyButton = new FGButton(MultiLanguage.getString(FocLangKeys.CASH_HISTORY));
+    historyButton.addActionListener(new AbstractAction(){
+      public void actionPerformed(ActionEvent e) {
+        FocList openCloseHistory = getOpenCloseList();//CashOpenClose.createList(getCashDesk(), getCurrency());
+        //openCloseHistory.loadIfNotLoadedFromDB();
+        FPanel panel = CashOpenClose.newBrowsePanel(openCloseHistory, 0);
+        Globals.getDisplayManager().popupDialog(panel, MultiLanguage.getString(FocLangKeys.CASH_HISTORY), true);
+      }
+    });
+    
+    panel.add(historyButton, 3, 1);
+    
+    FGButton printButton = new FGButton(MultiLanguage.getString(FocLangKeys.COMMAND_PRINT));
+    printButton.addActionListener(new AbstractAction(){
+      public void actionPerformed(ActionEvent e) {
+        FocConstructor constr = new FocConstructor(CashDeskPrinter.getFocDesc(), null);
+
+        CashDeskPrinter cashDeskPrint = (CashDeskPrinter) constr.newItem();
+        cashDeskPrint.setCashDeskByCurrencyViewer((CashDeskByCurrencyViewer)getThis());
+        cashDeskPrint.popup();
+      }
+    });
+    panel.add(printButton, 4, 1);
+    
+    return panel;
+  }
+  
+  public FPanel newDetailsPanel(int viewID) {
+    FPanel panel = new FPanel();
+    
+    FPanel openClosePanel = newOpenClosePanel(0);
+    openClosePanel.setFill(FPanel.FILL_NONE);
+    panel.add(openClosePanel, 0, 0, GridBagConstraints.WEST);
+
+    FocList movementList = getMovementList();
+    cashMovementPanel = (FListPanel) CashMovement.newBrowsePanel(movementList, 0);
+    panel.add(cashMovementPanel, 0, 1);
+    
+    enableDisableComponents();
+    
+    return panel;
+  }
+  
+  public void putInPanel(FPanel containerPanel){
+    if(containerPanel != null){
+      if(containerPanel == this.containerPanel && zPanel != null){
+        //In this case I have to remove the previous panel before putting the new one
+        containerPanel.remove(zPanel);
+        zPanel.setVisible(false);
+      }
+      zPanel = newDetailsPanel(0);
+      containerPanel.add(zPanel, 0, 0);
+      this.containerPanel = containerPanel;
+    }
+  }
+  
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // LIST
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+
+
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // DESCRIPTION
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+
+  private static FocDesc focDesc = null;
+
+  public static final int FLD_CURRENCY = 1;
+  public static final int FLD_CASH_OPENING = 2;
+  public static final int FLD_CASH_CLOSING = 3;
+  public static final int FLD_CASH_PREV_CLOSING = 4;
+  public static final int FLD_CASH_PREV_CLOSING_DATE = 5;
+  public static final int FLD_CASH_MOVEMENT_TOTAL = 6;
+  public static final int FLD_CASH_COMPUTED_CLOSING = 7;
+  public static final int FLD_CASH_MOVEMENT_LIST = 8;
+  
+  private static FocLink movementLink = null;
+  
+  private static FocLink getMovementLink(){
+    if(movementLink == null){
+      movementLink = new FocLinkSimple(CashMovement.getFocDesc());      
+    }
+    return movementLink;
+  }
+  
+  public static FocDesc getFocDesc() {
+    if (focDesc == null) {
+      FField focFld = null;
+      focDesc = new FocDesc(CashDeskByCurrencyViewer.class, FocDesc.NOT_DB_RESIDENT, "CASHDESK_VIEWER", false);
+
+      FObjectField focObjFld = new FObjectField("CURRENCY", "Currency", FLD_CURRENCY, false, Currency.getFocDesc(), "CURR_");
+      focObjFld.setSelectionList(Currency.getList(true));
+      focDesc.addField(focObjFld);
+      
+      focObjFld = new FObjectField("CASH_OPEN", "Cash opening", FLD_CASH_OPENING, false, CashOpenClose.getFocDesc(), "OPEN_");
+      focObjFld.setWithList(false);
+      focObjFld.setDetailsPanelViewID(CashOpenClose.VIEW_OPENING_VALIDATION);
+      focDesc.addField(focObjFld);
+
+      focObjFld = new FObjectField("CASH_CLOSE", "Cash closing", FLD_CASH_CLOSING, false, CashOpenClose.getFocDesc(), "CLOSE_");
+      focObjFld.setWithList(false);
+      focObjFld.setDetailsPanelViewID(CashOpenClose.VIEW_CLOSING_VALIDATION);
+      focDesc.addField(focObjFld);
+
+      focFld = new FDateField("PREV_CLOSE_D", "Previous closing date", FLD_CASH_PREV_CLOSING_DATE, false);
+      focDesc.addField(focFld);
+
+      focFld = new FNumField("MVT_TOTAL", "Movement total", FLD_CASH_MOVEMENT_TOTAL, false, 9, 2);
+      focDesc.addField(focFld);
+      
+      focFld = new FNumField("PREV_CLOSE", "Previous closing", FLD_CASH_PREV_CLOSING, false, 9, 2);
+      focDesc.addField(focFld);
+
+      focFld = new FNumField("COMP_CLOSE", "Computed closing", FLD_CASH_COMPUTED_CLOSING, false, 9, 2);
+      focDesc.addField(focFld);
+      
+      FListField movementList = new FListField("MVT_LIST", "Movement list", FLD_CASH_MOVEMENT_LIST, getMovementLink());
+      focDesc.addField(movementList);
+    }
+    return focDesc;
+  }
+}

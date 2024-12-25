@@ -1,0 +1,30 @@
+// PROPERTIES
+// INSTANCE
+//    MAIN
+//    PANEL
+// LIST
+// DESCRIPTION
+// RATES ARRAY
+
+/*
+ * Created on 01-Feb-2005
+ */
+package b01.foc.business.cashdesk;
+
+import java.util.Calendar;
+
+import b01.foc.*;
+import b01.foc.desc.*;
+import b01.foc.desc.field.*;
+import b01.foc.event.FValidationListener;
+import b01.foc.gui.*;
+import b01.foc.gui.table.*;
+import b01.foc.list.*;
+import b01.foc.property.*;
+/**
+ * @author 01Barmaja
+ */
+public interface CashMovementExtension {
+  public FocDesc getFocDesc();  
+  public void fillTableView(FTableView tableView, int view);
+}

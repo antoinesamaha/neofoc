@@ -1,0 +1,168 @@
+// PROPERTIES
+// INSTANCE
+//    MAIN
+//    PANEL
+// LIST
+// DESCRIPTION
+// DATE HASHTABLE
+// STATIC
+
+/*
+ * Created on 01-Feb-2005
+ */
+package b01.foc.business.cashdesk;
+
+import java.sql.Date;
+
+import b01.foc.*;
+import b01.foc.business.currency.Currency;
+import b01.foc.desc.*;
+import b01.foc.desc.field.*;
+import b01.foc.gui.*;
+import b01.foc.list.*;
+import b01.foc.property.*;
+
+/**
+ * @author 01Barmaja
+ */
+public class CashDeskConfig extends FocObject {
+  
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // INSTANCE
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+
+  // ---------------------------------
+  //    MAIN
+  // ---------------------------------
+
+  public CashDeskConfig(FocConstructor constr) {
+    super(constr);
+    
+    FocList focList = new FocList(this, getCurrencyLink(), null);
+    FocListOrder listOrder = new FocListOrder();
+    listOrder.addField(FFieldPath.newFieldPath(Currency.FLD_NAME));
+    focList.setListOrder(listOrder);
+    focList.sort();
+    new FList(this, FLD_CURRENCY_LIST, focList) ;
+  }
+  
+  public FocList getThisCurrencyList(){
+    FList currencyList = (FList) getFocProperty(FLD_CURRENCY_LIST);
+    return currencyList != null ? (FocList) currencyList.getList() : null;
+  }
+  
+  // ---------------------------------
+  //    PANEL
+  // ---------------------------------
+
+  public FPanel newDetailsPanel(int viewID) {
+    FPanel panel =new FPanel();
+
+    FocList currList = getThisCurrencyList();
+    FPanel brwPanel = Currency.newBrowsePanel(currList, Currency.VIEW_CURRENCY_N2N_SELECTION_PANEL);
+    
+    panel.add(brwPanel);
+    
+    //FValidationPanel validPanel = panel.showValidationPanel(true);
+    //validPanel.addSubject(this);
+    return panel;
+  }
+
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // LIST
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  
+  public static FocList getList(){
+    FocLink link = new FocLinkSimple(focDesc);
+    FocList list = new FocList(link);
+    list.reloadFromDB();
+    
+    return list;
+  }
+
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // DESCRIPTION
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+
+  private static FocDesc focDesc = null;
+
+  public static final int FLD_CURRENCY_LIST = 1;
+
+  public static FocLink currencyList = null;
+  
+  public static FocLink getCurrencyLink(){
+    if(currencyList == null){
+      currencyList = new FocLinkN2N(getFocDesc(), b01.foc.business.currency.Currency.getFocDesc(), "");
+    }
+    return currencyList;
+  }
+  
+  public static FocDesc getFocDesc() {
+    if (focDesc == null) {
+      focDesc = new FocDesc(CashDeskConfig.class, FocDesc.DB_RESIDENT, "CASH_CONFIG", false);
+      focDesc.addReferenceField();
+
+      FListField list = new FListField("CURR_LIST", "Currency list", FLD_CURRENCY_LIST, getCurrencyLink());
+      focDesc.addField(list);
+    }
+    return focDesc;
+  }
+  
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // STATIC
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  
+  private static CashDeskConfig cashDeskConfig = null;
+  //private static final java.sql.Date nullDate = new java.sql.Date(0);
+  
+  public static CashDeskConfig getCashDeskConfig(){
+    CashDeskConfig ret = cashDeskConfig;
+    if(ret == null){
+      FocList list = getList();
+      if(list.size() > 0){
+        cashDeskConfig = (CashDeskConfig) list.getFocObject(0);
+        ret = cashDeskConfig;
+      }
+      if(ret == null){
+        FocConstructor constr = new FocConstructor(CashDeskConfig.getFocDesc(), null, null);
+        ret = (CashDeskConfig) constr.newItem();
+        ret.setCreated(true);
+      }
+    }
+    return ret;
+  }
+  
+  public static FocList getCurrencyList(){
+    FocList currList = null;
+    CashDeskConfig cashDeskConfig = getCashDeskConfig();
+    if(cashDeskConfig != null){
+      FList list = (FList) cashDeskConfig.getFocProperty(FLD_CURRENCY_LIST);
+      currList = list.getList();
+    }
+    return currList;
+  }
+  
+  public static int getDeskLockDelay(){
+    int lockDelay = 2;
+    return lockDelay;
+  }
+  
+  public static boolean isDateLocked(java.sql.Date date){
+    boolean canModify = false; 
+    int days = getDeskLockDelay();
+    Date sysDate = Globals.getApp().getSystemDate();
+    long deltaTime = sysDate.getTime() - date.getTime();
+    long nbDays = deltaTime / Globals.DAY_TIME;
+    canModify = nbDays <= days;
+    return canModify;
+  }
+}
+

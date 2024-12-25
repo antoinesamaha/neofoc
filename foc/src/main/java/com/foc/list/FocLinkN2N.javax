@@ -1,0 +1,232 @@
+/*
+ * Created on Oct 14, 2004
+ */
+package b01.foc.list;
+
+import java.util.*;
+
+import b01.foc.*;
+import b01.foc.db.*;
+import b01.foc.property.*;
+import b01.foc.desc.*;
+import b01.foc.desc.field.*;
+
+/**
+ * @author 01Barmaja
+ */
+public class FocLinkN2N extends FocLink {
+
+  private FocDesc linkTableDesc = null;
+  private String suffix = "";
+
+  public FocLinkN2N(FocDesc masterDesc, FocDesc slaveDesc, String suffix) {
+    super(masterDesc, slaveDesc);
+    this.suffix = suffix;
+  }
+
+  public void adaptSQLFilter(FocList list, SQLFilter filter) {
+    if (list != null && filter != null) {
+      filter.setMasterObject(list.getMasterObject());
+    }
+  }
+
+  public FocDesc getLinkTableDesc() {
+    try{
+      FocDesc masterDesc = getMasterDesc();
+      FocDesc slaveDesc = getSlaveDesc();
+      if (linkTableDesc == null && masterDesc != null && slaveDesc != null) {
+        FField focFld = null;
+        FField masterField = null;
+        FField slaveField = null;
+  
+        Iterator focFieldEnum = masterDesc.newFocFieldEnum(FocFieldEnum.CAT_REF, FocFieldEnum.LEVEL_DB);
+        if (focFieldEnum != null && focFieldEnum.hasNext()) {
+          masterField = (FField) focFieldEnum.next();
+        }
+  
+        focFieldEnum = slaveDesc.newFocFieldEnum(FocFieldEnum.CAT_REF, FocFieldEnum.LEVEL_DB);
+        if (focFieldEnum != null && focFieldEnum.hasNext()) {
+          slaveField = (FField) focFieldEnum.next();
+        }
+  
+        if (masterField != null && slaveField != null) {
+          String tableName = "LNK_" + masterDesc.getStorageName() + "_" + slaveDesc.getStorageName();
+          if (suffix != null && suffix.compareTo("") != 0) {
+            tableName += "_" + suffix;
+          }
+          linkTableDesc = new FocDesc(FocLinkTableObject.class, FocDesc.DB_RESIDENT, tableName, this);
+  
+          focFld = (FField)masterField.clone();
+          if (focFld != null) {
+            focFld.setName(FField.MASTER_REF_FIELD_NAME);
+            focFld.setId(FField.MASTER_REF_FIELD_ID);
+            focFld.setKey(true);
+            linkTableDesc.addField(focFld);
+          }
+  
+          focFld = (FField)slaveField.clone();
+          if (focFld != null) {
+            focFld.setName(FField.SLAVE_REF_FIELD_NAME);
+            focFld.setId(FField.SLAVE_REF_FIELD_ID);
+            linkTableDesc.addField(focFld);
+          }
+        }
+      }
+    }catch(Exception e){
+      Globals.logException(e);
+    }
+    return linkTableDesc;
+  }
+
+  public boolean saveDB(FocList focList) {
+
+  	Globals.getDisplayManager().popupMessage("Operation not supported please check wiith 01Barmaja");
+  	//Disactivated when we introduced the web
+  	
+  	/*
+    // We should delete the elements that are connected to this master
+    // ---------------------------------------------------------------
+    FocDesc linkTableDesc = this.getLinkTableDesc();
+    FocObject masterObj = focList.getFilter().getMasterObject();
+    FocLinkTableObject linkObjTemplate = FocLinkTableObject.newObject(this);
+    FProperty masterPropInLinkObj = linkObjTemplate.getFocProperty(FField.MASTER_REF_FIELD_ID);
+    FProperty slavePropInLinkObj = linkObjTemplate.getFocProperty(FField.SLAVE_REF_FIELD_ID);
+    FProperty masterObjProp = masterObj.getIdentifierProperty();
+    masterPropInLinkObj.setString(masterObjProp.getString());
+
+    SQLFilter filter = new SQLFilter(linkObjTemplate, SQLFilter.FILTER_ON_KEY);
+
+    SQLDelete sqlDelete = new SQLDelete(linkTableDesc, filter);
+    try{
+			sqlDelete.execute();
+		}catch (Exception e){
+			Globals.logException(e);
+		}
+
+    // We should save the elements that are connected to this master
+    // -------------------------------------------------------------
+    Iterator iter = focList.listElementIterator();
+    while (iter != null && iter.hasNext()) {
+      FocListElement listElement = (FocListElement) iter.next();
+      if (listElement != null) {
+        if (listElement.isSelected()) {
+          slavePropInLinkObj.setString(listElement.getFocObject().getIdentifierProperty().getString());
+          SQLInsert insert = new SQLInsert(linkTableDesc, linkObjTemplate);
+          try{
+						insert.execute();
+					}catch (Exception e){
+						Globals.logException(e);
+					}
+        }
+      }
+    }
+    */
+
+    return false;
+  }
+
+  public boolean loadDB(FocList focList) {
+  	return true;
+  	//Not Used any more N2N
+  	/*
+    FocObject masterObj = focList.getFilter().getMasterObject();
+    focList.getFilter().setMasterObject(null);
+    boolean loadAll = loadDBDefault(focList);
+    focList.getFilter().setMasterObject(masterObj);
+
+    if (loadAll) {
+      // Now we need to do a select on the link table.
+      // The ideal way is to create a FocList with simple link
+      // On the link Table.
+      // This is why we need to create the filter object
+      // Which is a LinkTableObject with the right master field ID
+      FocDesc linkTableDesc = this.getLinkTableDesc();
+      FocLinkTableObject linkObjTemplate = FocLinkTableObject.newObject(this);
+      FProperty masterPropInLinkObj = linkObjTemplate.getFocProperty(FField.MASTER_REF_FIELD_ID);
+      //FProperty masterPropInLinkObj = linkObjTemplate.getgetFocProperty(FField.MASTER_REF_FIELD_ID);            
+      FProperty masterObjProp = masterObj.getIdentifierProperty();
+      masterPropInLinkObj.setString(masterObjProp.getString());
+
+      SQLFilter filter = new SQLFilter(linkObjTemplate, SQLFilter.FILTER_ON_KEY);
+
+      //Carefull here we can create a one2N link. It is more logical
+      FocLinkSimple simpleLinkForTheLinkTable = new FocLinkSimple(linkTableDesc); 
+      FocList loadedFocList = new FocList(focList.getMasterObject() ,simpleLinkForTheLinkTable, filter);
+      loadedFocList.loadIfNotLoadedFromDB();
+
+      Iterator iter = loadedFocList.focObjectIterator();
+      while (iter != null && iter.hasNext()) {
+        FocObject linkFocObj = (FocObject) iter.next();
+        if (linkFocObj != null) {
+          FInt slaveIdentifierProp = (FInt) linkFocObj.getFocProperty(FField.SLAVE_REF_FIELD_ID);
+
+          FocListElement listElement = focList.searchElementByReference(slaveIdentifierProp.getInteger());
+          if (listElement != null) {
+            listElement.setSelected(true);
+          }
+        }
+      }
+    }
+    focList.backupAllObjects();
+    return loadAll;
+    */
+  }
+
+  public boolean canDeleteDB(FocList focList) {
+    return true;
+  }
+
+  public boolean deleteDB(FocList focList) {
+    boolean deleted = false;
+
+    if (focList != null) {
+      FocObject masterObj = focList.getFilter().getMasterObject();
+      FocDesc linkTableDesc = this.getLinkTableDesc();
+      FocLinkTableObject linkObjTemplate = FocLinkTableObject.newObject(this);
+
+      if (masterObj != null && linkObjTemplate != null) {
+        FProperty masterPropInLinkObj = linkObjTemplate.getFocProperty(FField.MASTER_REF_FIELD_ID);
+        FProperty masterObjProp = masterObj.getIdentifierProperty();
+        masterPropInLinkObj.setString(masterObjProp.getString());
+
+        SQLFilter filter = new SQLFilter(linkObjTemplate, SQLFilter.FILTER_ON_KEY);
+        SQLDelete delete = new SQLDelete(linkTableDesc, filter);
+        try{
+					delete.execute();
+				}catch (Exception e){
+					Globals.logException(e);
+				}
+        deleted = true;
+      }
+    }
+
+    return deleted;
+  }
+  
+  /* (non-Javadoc)
+   * @see b01.foc.list.FocLink#copy(b01.foc.list.FocList, b01.foc.list.FocList)
+   */
+  public void copy(FocList targetList, FocList sourceList) {
+    super.copyDefault(targetList, sourceList, false);
+    
+    if(targetList != null && sourceList != null){
+      Iterator iter = sourceList.listElementIterator();
+      while(iter != null && iter.hasNext()){
+        FocListElement sourceElem = (FocListElement) iter.next();
+        if(sourceElem != null && sourceElem.getSelectedProperty().getBoolean()){
+          FocListElement targetElem = targetList.getFocListElement(sourceElem.getFocObject());
+          targetElem.setSelected(true);
+        }
+      }
+    }
+  }
+  
+  public boolean disposeList(FocList list){
+   list.dispose();
+   return true;
+  }
+  
+  public FocObject getSingleTableDisplayObject(FocList list){
+    return null;
+  }
+}

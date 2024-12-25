@@ -1,0 +1,491 @@
+// PROPERTIES
+// INSTANCE
+//    MAIN
+//    STATIC LISTENERS
+//    PANEL
+// LIST
+// DESCRIPTION
+
+/*
+ * Created on 01-Feb-2005
+ */
+package b01.foc.business.cashdesk;
+
+import java.sql.Date;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+
+import javax.swing.AbstractAction;
+
+import b01.foc.*;
+import b01.foc.business.currency.Currency;
+import b01.foc.business.multilanguage.MultiLanguage;
+import b01.foc.db.SQLFilter;
+import b01.foc.desc.*;
+import b01.foc.desc.field.*;
+import b01.foc.gui.*;
+import b01.foc.gui.table.*;
+import b01.foc.list.*;
+import b01.foc.property.*;
+
+/**
+ * @author 01Barmaja
+ */
+public class CashOpenClose extends FocObject {
+  
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // INSTANCE
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+
+  private FGButton openValidationButton = null;
+  private FGButton closeValidationButton = null;
+  private Component openingAmmountComponent = null; 
+  private Component closingAmmountComponent = null;
+  private boolean openNeedsValidation = false;
+  private boolean closeNeedsValidation = false;
+  
+  // ---------------------------------
+  //    MAIN
+  // ---------------------------------
+
+  public CashOpenClose(FocConstructor constr) {
+    super(constr);
+
+    FObject cashDesk = new FObject(this, FLD_CASHDESK, null) ;
+    FDate date = new FDate(this, FLD_DATE, new Date(0)) ;
+    FObject currency = new FObject(this, FLD_CURRENCY, null) ;
+    FDouble openAmmount = new FDouble(this, FLD_OPEN_AMMOUNT, 0) ;
+    FDouble closeAmmount = new FDouble(this, FLD_CLOSE_AMMOUNT, 0) ;
+    FDouble variationAmmount = new FDouble(this, FLD_VARIATION_AMMOUNT, 0) ;
+    FBoolean isClosed = new FBoolean(this, FLD_IS_CLOSED, false) ;
+    FBoolean isOpened = new FBoolean(this, FLD_IS_OPENED, false) ;
+    
+    openAmmount.addListener(getVariationFieldComputerListener());
+    closeAmmount.addListener(getVariationFieldComputerListener());
+    isClosed.addListener(getVariationFieldComputerListener());
+    
+    forceControler(true);
+  }
+
+  public CashDesk getCashDesk(){
+    FObject str = (FObject)getFocProperty(FLD_CASHDESK);
+    //return (CashDesk) str.getObject();
+    return (CashDesk) str.getObject_CreateIfNeeded();
+  }
+
+  public FDate getDateProperty(){
+    FDate str = (FDate)getFocProperty(FLD_DATE);
+    return str;
+  }
+
+  public Date getDate(){
+    FDate str = getDateProperty();
+    return str.getDate();
+  }
+
+  public boolean isClosing(){
+    FBoolean str = (FBoolean)getFocProperty(FLD_IS_CLOSED);
+    return str.getBoolean();
+  }
+  
+  public Currency getCurrency(){
+    FObject str = (FObject)getFocProperty(FLD_CURRENCY);
+    return (Currency) str.getObject();
+  }
+  
+  public double getOpenAmmount(){
+    FDouble dProp = (FDouble)getFocProperty(FLD_OPEN_AMMOUNT);
+    return dProp.getDouble();
+  }
+
+  public double getCloseAmmount(){
+    FDouble dProp = (FDouble)getFocProperty(FLD_CLOSE_AMMOUNT);
+    return dProp.getDouble();
+  }
+
+  public void setVariationAmmount(double variation){
+    FDouble dProp = (FDouble)getFocProperty(FLD_VARIATION_AMMOUNT);
+    dProp.setDouble(variation);
+  }
+  
+  public void setCashDesk(CashDesk cashDesk){
+    FObject str = (FObject)getFocProperty(FLD_CASHDESK);
+    str.setObject(cashDesk);
+  }
+
+  public void setDate(Date date){
+    FDate str = (FDate)getFocProperty(FLD_DATE);
+    str.setDate(date);
+  }
+
+  public void setCurrency(Currency curr){
+    FObject str = (FObject)getFocProperty(FLD_CURRENCY);
+    str.setObject(curr);
+  }
+
+  public void setIsClosed(boolean isClosing){
+    FBoolean str = (FBoolean)getFocProperty(FLD_IS_CLOSED);
+    str.setBoolean(isClosing);
+  }
+
+  public boolean isClosed(){
+    FBoolean str = (FBoolean)getFocProperty(FLD_IS_CLOSED);
+    return str.getBoolean();
+  }
+
+  public void setIsOpened(boolean isOpened){
+    FBoolean str = (FBoolean)getFocProperty(FLD_IS_OPENED);
+    str.setBoolean(isOpened);
+  }
+  
+  public boolean isOpened(){
+    FBoolean str = (FBoolean)getFocProperty(FLD_IS_OPENED);
+    return str.getBoolean();
+  }
+  
+  public void setOpeningAmmountEnabled(boolean enabled){
+    if(openingAmmountComponent != null){
+      openingAmmountComponent.setEnabled(enabled);
+    }
+  }
+  
+  public void setClosingAmmountEnabled(boolean enabled){
+    if(closingAmmountComponent != null){
+      closingAmmountComponent.setEnabled(enabled);
+    }
+  }
+
+  public boolean isCloseNeedsValidation() {
+    return closeNeedsValidation;
+  }
+  public void setCloseNeedsValidation(boolean closeNeedsValidation) {
+    this.closeNeedsValidation = closeNeedsValidation;
+  }
+  public boolean isOpenNeedsValidation() {
+    return openNeedsValidation;
+  }
+  public void setOpenNeedsValidation(boolean openNeedsValidation) {
+    this.openNeedsValidation = openNeedsValidation;
+  }
+  
+  // ---------------------------------
+  //    STATIC LISTENERS
+  // ---------------------------------
+  
+  private static FPropertyListener variationFieldComputerListener = null;
+  
+  private static FPropertyListener getVariationFieldComputerListener(){
+    if(variationFieldComputerListener == null){
+      variationFieldComputerListener = new FPropertyListener(){
+        public void propertyModified(FProperty property) {
+          CashOpenClose oc = (CashOpenClose) property.getFocObject();
+          if(oc.isClosed()){
+            oc.setVariationAmmount(oc.getCloseAmmount() - oc.getOpenAmmount());
+          }else{
+            oc.setVariationAmmount(0);
+          }
+          if(property.getFocField().getID() == FLD_OPEN_AMMOUNT){
+            oc.setOpenNeedsValidation(true);
+            oc.resetValidationButtonsEnableDisable();
+          }else if(property.getFocField().getID() == FLD_CLOSE_AMMOUNT){
+            oc.setCloseNeedsValidation(true);
+            oc.resetValidationButtonsEnableDisable();
+          }
+        }
+
+        public void dispose() {
+          // TODO Auto-generated method stub
+          
+        }
+      };
+    }
+    return variationFieldComputerListener;
+  }
+
+  // ---------------------------------
+  //    PANEL
+  // ---------------------------------
+  
+  public static final int VIEW_OPENING_VALIDATION = 2;
+  public static final int VIEW_CLOSING_VALIDATION = 3;
+  
+  public void resetValidationButtonsEnableDisable(){
+    if(closeValidationButton != null){
+      closeValidationButton.setEnabled(isCloseNeedsValidation());
+    }
+    if(openValidationButton != null){
+      openValidationButton.setEnabled(isOpenNeedsValidation());
+    }
+  }
+  
+  public FPanel newDetailsPanel(int viewID) {
+    FPanel panel = new FPanel();
+    Component comp = null;
+    
+    if(viewID == VIEW_OPENING_VALIDATION){
+      comp = getGuiComponent(FLD_DATE);
+      comp.setEnabled(false);
+      panel.add(MultiLanguage.getString(FocLangKeys.CASH_OPENING_AT), comp, 0, 0);
+      
+      openingAmmountComponent = getGuiComponent(FLD_OPEN_AMMOUNT);
+      panel.add(openingAmmountComponent, 2, 0);
+      
+      openValidationButton = new FGButton(MultiLanguage.getString(FocLangKeys.COMMAND_VALIDATE));
+      openValidationButton.addActionListener(new AbstractAction(){
+        public void actionPerformed(ActionEvent e) {
+          setIsOpened(true);
+          validate(false);
+          openNeedsValidation = false;
+          openValidationButton.setEnabled(false);
+          CashDeskByCurrencyViewer byCurr = (CashDeskByCurrencyViewer) getMasterObject();
+          byCurr.resetAll();
+        }
+      });
+      panel.add(openValidationButton, 3, 0);
+      openValidationButton.setEnabled(false);
+ 
+    }else if(viewID == VIEW_CLOSING_VALIDATION){
+      comp = getGuiComponent(FLD_DATE);
+      comp.setEnabled(false);
+      panel.add(MultiLanguage.getString(FocLangKeys.CASH_CLOSING_AT), comp, 0, 0);
+      
+      closingAmmountComponent = getGuiComponent(FLD_CLOSE_AMMOUNT);
+      panel.add(closingAmmountComponent, 2, 0);
+      
+      closeValidationButton = new FGButton(MultiLanguage.getString(FocLangKeys.COMMAND_VALIDATE));
+      closeValidationButton.addActionListener(new AbstractAction(){
+        public void actionPerformed(ActionEvent e) {
+          if(!isOpened()){
+            Globals.getDisplayManager().popupMessage("You should open the cashdesk before closing it!");
+          }else{
+            setIsClosed(true);
+            validate(false);
+            closeNeedsValidation = false;
+            closeValidationButton.setEnabled(false);
+            CashDeskByCurrencyViewer byCurr = (CashDeskByCurrencyViewer) getMasterObject();
+            byCurr.resetAll();
+          }
+        }
+      });
+      panel.add(closeValidationButton, 3, 0);
+      closeValidationButton.setEnabled(false);
+      
+    }else{
+      FPanel userLevelPanel = newUserLevelPanel();
+      if(userLevelPanel != null){
+        panel.add(userLevelPanel, 0, 0, 1, 1, GridBagConstraints.WEST, GridBagConstraints.NONE);
+      }
+    }
+    
+    return panel;
+  }
+
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // LIST
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+
+  private static final int COL_CASHDESK = 1;
+  private static final int COL_DATE = 2;
+  private static final int COL_CURRENCY = 3;
+  private static final int COL_OPEN_AMMOUNT = 4;
+  private static final int COL_CLOSE_AMMOUNT = 5;
+  private static final int COL_VARIATION_AMMOUNT = 6;
+  private static final int COL_IS_CLOSED = 7;
+  private static final int COL_IS_OPENED = 8;
+  
+  private static FocList focList = null;
+  
+  public static CashOpenClose newCashOpenClose(FocObject masterObject, CashDesk cashDesk, Currency currency, Date date){
+    FocConstructor openCloseConstr = new FocConstructor(CashOpenClose.getFocDesc(), masterObject);
+    CashOpenClose openClose = (CashOpenClose) openCloseConstr.newItem();
+
+    if(cashDesk != null){
+      openClose.setCashDesk(cashDesk);
+    }
+    if(currency != null){
+      openClose.setCurrency(currency);
+    }
+    if(date != null){
+      openClose.setDate(date);
+    }
+    
+    return openClose;
+  }
+  
+  public static FocList createList(FocObject masterObject, CashDesk cashDesk, Currency currency){
+    SQLFilter filter = null;
+    if(cashDesk != null || currency != null){
+      CashOpenClose cashOpenClose = newCashOpenClose(null, cashDesk, currency, null);
+      filter = new SQLFilter(cashOpenClose, SQLFilter.FILTER_ON_SELECTED);
+      if(cashDesk != null){
+        filter.addSelectedField(FLD_CASHDESK);
+      }
+      if(currency != null){
+        filter.addSelectedField(FLD_CURRENCY);
+      }
+    }
+
+    FocLink link = new FocLinkSimple(focDesc);
+    FocList focList = new FocList(masterObject, link, filter);
+    
+    FocListOrder listOrder = new FocListOrder();
+    listOrder.addField(FFieldPath.newFieldPath(FLD_CASHDESK));
+    listOrder.addField(FFieldPath.newFieldPath(FLD_DATE));
+    listOrder.addField(FFieldPath.newFieldPath(FLD_CURRENCY));
+    focList.setListOrder(listOrder);
+    
+    return focList;
+  }
+
+  public static FocList createList(){
+    createList(null, null, null);
+    FocLink link = new FocLinkSimple(focDesc);
+    FocList focList = new FocList(link);
+
+    FocListOrder listOrder = new FocListOrder();
+    listOrder.addField(FFieldPath.newFieldPath(FLD_CASHDESK));
+    listOrder.addField(FFieldPath.newFieldPath(FLD_DATE));
+    listOrder.addField(FFieldPath.newFieldPath(FLD_CURRENCY));
+    focList.setListOrder(listOrder);
+    
+    return focList;
+  }
+  
+  public static FocList getList(int mode){
+    if(focList == null){
+      focList = createList();
+    }
+    if(mode == FocList.LOAD_IF_NEEDED){
+      focList.loadIfNotLoadedFromDB();
+    }else if(mode == FocList.FORCE_RELOAD){
+      focList.reloadFromDB();
+    }
+    return focList;
+  }
+  
+  public static FPanel newBrowsePanel(FocList list, int viewID) {
+    FocDesc desc = getFocDesc();
+    FListPanel selectionPanel = null;
+    if (desc != null) {
+      if(list == null){
+        list = createList();
+        list.loadIfNotLoadedFromDB();
+      }
+      if (list != null) {
+        list.setDirectImpactOnDatabase(false);
+
+        selectionPanel = new FListPanel(list);
+        FTableView tableView = selectionPanel.getTableView();
+        
+        FField currField = null;
+        FTableColumn col = null;
+
+        col = new FTableColumn(desc, FFieldPath.newFieldPath(FLD_CASHDESK), COL_CASHDESK, MultiLanguage.getString(FocLangKeys.CASH_CASHDESK), false);
+        tableView.addColumn(col);
+
+        col = new FTableColumn(desc, FFieldPath.newFieldPath(FLD_DATE), COL_DATE, MultiLanguage.getString(FocLangKeys.CASH_DATE), false);
+        tableView.addColumn(col);
+
+        col = new FTableColumn(desc, FFieldPath.newFieldPath(FLD_CURRENCY), COL_CURRENCY, MultiLanguage.getString(FocLangKeys.CURR_CURRENCY), 10, false);
+        tableView.addColumn(col);        
+
+        col = new FTableColumn(desc, FFieldPath.newFieldPath(FLD_OPEN_AMMOUNT), COL_OPEN_AMMOUNT, MultiLanguage.getString(FocLangKeys.CASH_OPEN_AMMOUNT), 15, false);
+        tableView.addColumn(col);
+        
+        col = new FTableColumn(desc, FFieldPath.newFieldPath(FLD_CLOSE_AMMOUNT), COL_CLOSE_AMMOUNT, MultiLanguage.getString(FocLangKeys.CASH_CLOSE_AMMOUNT), 15, false);
+        tableView.addColumn(col);
+        
+        col = new FTableColumn(desc, FFieldPath.newFieldPath(FLD_VARIATION_AMMOUNT), COL_VARIATION_AMMOUNT, MultiLanguage.getString(FocLangKeys.CASH_VARIATION_AMMOUNT), false);
+        tableView.addColumn(col);
+
+        col = new FTableColumn(desc, FFieldPath.newFieldPath(FLD_IS_OPENED), COL_IS_OPENED, MultiLanguage.getString(FocLangKeys.CASH_IS_OPENED), 10, false);
+        tableView.addColumn(col);
+        
+        col = new FTableColumn(desc, FFieldPath.newFieldPath(FLD_IS_CLOSED), COL_IS_CLOSED, MultiLanguage.getString(FocLangKeys.CASH_IS_CLOSED), 10, false);
+        tableView.addColumn(col);
+
+        selectionPanel.construct();
+
+        selectionPanel.setDirectlyEditable(false);
+        
+        FValidationPanel savePanel = selectionPanel.showValidationPanel(true);
+        if (savePanel != null) {
+          //list.setFatherSubject(null);
+          savePanel.addSubject(list);
+          savePanel.setValidationType(FValidationPanel.VALIDATION_OK);
+        }
+
+        selectionPanel.requestFocusOnCurrentItem();
+        selectionPanel.showEditButton(false);
+        selectionPanel.showModificationButtons(false);
+        
+        FGCurrentItemPanel currentItemPanel = new FGCurrentItemPanel(selectionPanel, 0);
+        selectionPanel.getTotalsPanel().add(currentItemPanel);
+      }
+    }
+    selectionPanel.setFrameTitle(MultiLanguage.getString(FocLangKeys.CASH_HISTORY));
+    
+    return selectionPanel;
+  }
+
+  // ooooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+  // DESCRIPTION
+  // oooooooooooooooooooooooooooooooooo
+  // oooooooooooooooooooooooooooooooooo
+
+  private static FocDesc focDesc = null;
+
+  public static final int FLD_CASHDESK = 1;
+  public static final int FLD_DATE = 2;
+  public static final int FLD_CURRENCY = 3;
+  public static final int FLD_OPEN_AMMOUNT = 4;
+  public static final int FLD_CLOSE_AMMOUNT = 5;
+  public static final int FLD_VARIATION_AMMOUNT = 6;
+  public static final int FLD_IS_CLOSED = 7;
+  public static final int FLD_IS_OPENED = 8;
+  
+  public static FocDesc getFocDesc() {
+    if (focDesc == null) {
+      FField focFld = null;
+      focDesc = new FocDesc(CashOpenClose.class, FocDesc.DB_RESIDENT, "CASH_OPEN_CLOSE", false);
+
+      focFld = focDesc.addReferenceField();
+      focDesc.setRightsByLevelEnabled(FocDesc.RIGHTS_BY_LEVEL_MODE_TRACE_ONLY);
+
+      FObjectField focObjFld = new FObjectField("CASH_DESK", "Cash desk", FLD_CASHDESK, true, CashDesk.getFocDesc(), "CASH_");
+      focObjFld.setComboBoxCellEditor(CashDesk.FLD_NAME);
+      focObjFld.setSelectionList(CashDesk.getList(FocList.NONE));
+      focDesc.addField(focObjFld);
+
+      focFld = new FDateField("DATE", "Date", FLD_DATE, true);
+      focDesc.addField(focFld);
+
+      focObjFld = new FObjectField("CURRENCY", "Currency", FLD_CURRENCY, true, b01.foc.business.currency.Currency.getFocDesc(), "CURR_");
+      focObjFld.setComboBoxCellEditor(Currency.FLD_NAME);
+      focObjFld.setSelectionList(Currency.getList(true));
+      focDesc.addField(focObjFld);
+
+      focFld = new FNumField("OPEN_AMM", "Ammount", FLD_OPEN_AMMOUNT, false, 9, 2);
+      focDesc.addField(focFld);
+
+      focFld = new FNumField("CLOSE_AMM", "Ammount", FLD_CLOSE_AMMOUNT, false, 9, 2);
+      focDesc.addField(focFld);
+
+      focFld = new FNumField("VARIATION_AMM", "Variation ammount", FLD_VARIATION_AMMOUNT, false, 9, 2);
+      focFld.setDBResident(false);
+      focDesc.addField(focFld);
+      
+      focFld = new FBoolField("IS_CLOSE", "Is close", FLD_IS_CLOSED, false);
+      focDesc.addField(focFld);
+      
+      focFld = new FBoolField("IS_OPENED", "Is opened", FLD_IS_OPENED, false);
+      focDesc.addField(focFld);
+    }
+    return focDesc;
+  }
+}
