@@ -32,8 +32,6 @@ import com.foc.desc.FocConstructor;
 import com.foc.desc.FocObject;
 import com.foc.list.FocList;
 import com.foc.util.ASCII;
-import com.vaadin.server.DownloadStream;
-import com.vaadin.server.FileResource;
 
 @SuppressWarnings("serial")
 public class PhotoAlbum extends FocObject{
@@ -266,13 +264,13 @@ public class PhotoAlbum extends FocObject{
 //		return include;
 //	}
 	
-	public class PhotoAlbumFileResource extends FileResource{
+	public class PhotoAlbumFileResource {
 
     private ByteArrayInputStream bais   = null;
     private PhotoAlbum           album  = null;
     
     public PhotoAlbumFileResource(File sourceFile, PhotoAlbum album){
-    	super(sourceFile);
+//    	super(sourceFile);
     	this.album = album;
     }
     
@@ -287,33 +285,33 @@ public class PhotoAlbum extends FocObject{
     	}
     }
     
-    @Override
-    public DownloadStream getStream() {
-      DownloadStream downloadStream = null;
-      if(album.getImageCloud() instanceof FileInputStream){
-      	InputStream inputStream = album.getImageCloud();
-	      try{
-		      ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-		      int byt = 0;		      
-		      while((byt = inputStream.read()) != -1){
-		      	byteArrayOutputStream.write(byt);
-		      }
-		      inputStream.close();
-		      bais = new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
-	      }catch(Exception ex){
-	      	ex.printStackTrace();
-	      }
-      }else{
-      	bais = (ByteArrayInputStream) album.getImageCloud();
-      }
-      if(bais != null){
-      	String fileName = album.getImageName();
-        downloadStream = new DownloadStream(bais, "application/x-unknown", fileName);
-        downloadStream.setParameter("Content-Disposition", "attachment; filename=" + fileName);
-        downloadStream.setCacheTime(0);
-      }
-      return downloadStream;
-    }
+//    @Override
+//    public DownloadStream getStream() {
+//      DownloadStream downloadStream = null;
+//      if(album.getImageCloud() instanceof FileInputStream){
+//      	InputStream inputStream = album.getImageCloud();
+//	      try{
+//		      ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+//		      int byt = 0;
+//		      while((byt = inputStream.read()) != -1){
+//		      	byteArrayOutputStream.write(byt);
+//		      }
+//		      inputStream.close();
+//		      bais = new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
+//	      }catch(Exception ex){
+//	      	ex.printStackTrace();
+//	      }
+//      }else{
+//      	bais = (ByteArrayInputStream) album.getImageCloud();
+//      }
+//      if(bais != null){
+//      	String fileName = album.getImageName();
+//        downloadStream = new DownloadStream(bais, "application/x-unknown", fileName);
+//        downloadStream.setParameter("Content-Disposition", "attachment; filename=" + fileName);
+//        downloadStream.setCacheTime(0);
+//      }
+//      return downloadStream;
+//    }
   }
 	
 	public void fillURLKey(){

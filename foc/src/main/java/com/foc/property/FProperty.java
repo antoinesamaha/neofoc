@@ -25,15 +25,12 @@ import com.foc.formula.PropertyFormulaContext;
 import com.foc.gui.StaticComponent;
 import com.foc.property.validators.FPropertyValidator;
 import com.foc.shared.dataStore.IFocData;
-import com.vaadin.data.Item;
-import com.vaadin.data.Property;
-import com.vaadin.data.util.converter.Converter;
 
 /**
  * @author 01Barmaja
  */
 @SuppressWarnings("serial")
-public class FProperty implements Cloneable, Property, IFocData, Item.PropertySetChangeEvent, Property.ValueChangeNotifier {
+public class FProperty implements Cloneable, IFocData {
 
   private static final char FLG_VALUE_LOCKED                    =   1;
   private static final char FLG_DESACTIVATE_LISTENERS           =   2;
@@ -388,7 +385,7 @@ public class FProperty implements Cloneable, Property, IFocData, Item.PropertySe
         focObject.afterPropertyModified(this);  
       }
       notifyFieldListeners();
-      fireValueChange();
+//      fireValueChange();
     }
     if(focObject != null && getFocField() != null && getFocField().isDBResident()){
       focObject.setModified(true);
@@ -880,22 +877,22 @@ public class FProperty implements Cloneable, Property, IFocData, Item.PropertySe
   // VAADIN Property implementation
   //-------------------------------
   
-	@Override
+//	@Override
 	public Object getValue() {
 		return getObject();
 	}
 
-	@Override
-	public void setValue(Object newValue) throws ReadOnlyException, Converter.ConversionException {
+//	@Override
+	public void setValue(Object newValue) {
 		setObject(newValue);
 	}
 
-	@Override
+//	@Override
 	public Class<?> getType() {
 		return getFocField().vaadin_getClass();
 	}
 
-	@Override
+//	@Override
 	public boolean isReadOnly() {//This is mainy useful for us in the Grid because the CustomFieldGroup relies on this method to allow diting of a property
 		boolean readonly = isValueLocked();
 		if(!readonly && getFocField() != null){
@@ -907,7 +904,7 @@ public class FProperty implements Cloneable, Property, IFocData, Item.PropertySe
 		return readonly;
 	}
 
-	@Override
+//	@Override
 	public void setReadOnly(boolean newStatus) {
 	}
 
@@ -949,10 +946,10 @@ public class FProperty implements Cloneable, Property, IFocData, Item.PropertySe
   // Item.PropertySetChangeEvent
   //------------------------------------------
   
-	@Override
-	public Item getItem() {
-		return getFocObject();
-	}
+//	@Override
+//	public Item getItem() {
+//		return getFocObject();
+//	}
 
   //------------------------------------------
   // Property.ValueChangeNotifier
@@ -961,47 +958,47 @@ public class FProperty implements Cloneable, Property, IFocData, Item.PropertySe
   /**
    * List of listeners who are interested in the value changes of the Property
    */
-  private LinkedList<ValueChangeListener> valueChangeListeners = null;
+//  private LinkedList<ValueChangeListener> valueChangeListeners = null;
 	
-	@Override
-	public void addValueChangeListener(ValueChangeListener listener) {
-	  if (valueChangeListeners == null) {
-	  	valueChangeListeners = new LinkedList<ValueChangeListener>();
-	  }
-	  valueChangeListeners.add(listener);
-	}
+//	@Override
+//	public void addValueChangeListener(ValueChangeListener listener) {
+//	  if (valueChangeListeners == null) {
+//	  	valueChangeListeners = new LinkedList<ValueChangeListener>();
+//	  }
+//	  valueChangeListeners.add(listener);
+//	}
 
-	@Override
-	@Deprecated
-	public void addListener(ValueChangeListener listener) {
-		addValueChangeListener(listener);
-	}
+//	@Override
+//	@Deprecated
+//	public void addListener(ValueChangeListener listener) {
+//		addValueChangeListener(listener);
+//	}
 
-	@Override
-	public void removeValueChangeListener(ValueChangeListener listener) {
-    if (valueChangeListeners != null) {
-      valueChangeListeners.remove(listener);
-    }
-	}
-
-	@Override
-	@Deprecated
-	public void removeListener(ValueChangeListener listener) {
-		removeValueChangeListener(listener);
-	}
+//	@Override
+//	public void removeValueChangeListener(ValueChangeListener listener) {
+//    if (valueChangeListeners != null) {
+//      valueChangeListeners.remove(listener);
+//    }
+//	}
+//
+//	@Override
+//	@Deprecated
+//	public void removeListener(ValueChangeListener listener) {
+//		removeValueChangeListener(listener);
+//	}
 	
   /**
    * Sends a value change event to all registered listeners.
    */
-  public void fireValueChange() {
-    if (valueChangeListeners != null) {
-      final Object[] l = valueChangeListeners.toArray();
-      final Property.ValueChangeEvent event = new ValueChangeEvent(this);
-      for (int i = 0; i < l.length; i++) {
-        ((Property.ValueChangeListener) l[i]).valueChange(event);
-      }
-    }
-  }
+//  public void fireValueChange() {
+//    if (valueChangeListeners != null) {
+//      final Object[] l = valueChangeListeners.toArray();
+//      final Property.ValueChangeEvent event = new ValueChangeEvent(this);
+//      for (int i = 0; i < l.length; i++) {
+//        ((Property.ValueChangeListener) l[i]).valueChange(event);
+//      }
+//    }
+//  }
   
   public String getDBSourceKey(){
   	String key = null;
@@ -1022,7 +1019,7 @@ public class FProperty implements Cloneable, Property, IFocData, Item.PropertySe
   	return provider;
   }
   
-  private static class ValueChangeEvent extends java.util.EventObject implements Property.ValueChangeEvent {
+//  private static class ValueChangeEvent extends java.util.EventObject implements Property.ValueChangeEvent {
 
 		/**
 		* Constructs a new value change event for this object.
@@ -1030,20 +1027,20 @@ public class FProperty implements Cloneable, Property, IFocData, Item.PropertySe
 		* @param source
 		*            source object of the event.
 		*/
-		protected ValueChangeEvent(Property source) {
-		  super(source);
-		}
+//		protected ValueChangeEvent(Property source) {
+//		  super(source);
+//		}
 
 		/**
 		* Gets the Property whose value has changed.
 		* 
 		* @return source Property of the event.
 		*/
-		@Override
-		public Property getProperty() {
-		  return (Property) getSource();
-		}
-  }
+//		@Override
+//		public Property getProperty() {
+//		  return (Property) getSource();
+//		}
+//  }
   //------------------------------------------
   
   public boolean isAllowNullProperties() {

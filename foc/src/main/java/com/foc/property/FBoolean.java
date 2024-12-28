@@ -6,7 +6,6 @@ package com.foc.property;
 import java.text.Format;
 
 import com.foc.desc.FocObject;
-import com.vaadin.data.util.converter.Converter;
 
 /**
  * @author 01Barmaja
@@ -136,8 +135,7 @@ public class FBoolean extends FProperty {
 		return getObject();
 	}
 
-	@Override
-	public void setValue(Object newValue) throws ReadOnlyException, Converter.ConversionException {
+	public void setValue(Object newValue) {
 		setObject(newValue, true);
 	}
 	

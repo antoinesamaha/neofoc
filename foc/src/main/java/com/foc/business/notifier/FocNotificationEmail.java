@@ -44,7 +44,6 @@ import com.foc.desc.FocConstructor;
 import com.foc.desc.FocObject;
 import com.foc.shared.dataStore.IFocData;
 import com.foc.util.Utils;
-import com.vaadin.ui.JavaScript;
 
 @SuppressWarnings("serial")
 public class FocNotificationEmail extends FocObject implements FocNotificationEmailConst {
@@ -411,7 +410,7 @@ public class FocNotificationEmail extends FocObject implements FocNotificationEm
 	  	text = text.replace('\'', '-');
 	  	String recipients = getRecipients() != null ? getRecipients().replaceAll(" ", "") : "";
 	  	String javaScript = "var win = window.open('mailto:"+recipients+"?body="+text+"', '_blank'); win.close();";
-	    JavaScript.getCurrent().execute(javaScript);
+//	    JavaScript.getCurrent().execute(javaScript);
   	}
   }
   

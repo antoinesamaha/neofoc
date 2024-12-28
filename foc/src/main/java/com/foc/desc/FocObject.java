@@ -159,14 +159,12 @@ import com.foc.shared.json.B01JsonBuilder;
 import com.foc.shared.json.JSONObjectWriter;
 import com.foc.util.IFocIterator;
 import com.foc.util.Utils;
-import com.vaadin.data.Item;
-import com.vaadin.data.Property;
 
 /**
  * @author 01Barmaja
  */
 @SuppressWarnings("serial")
-public abstract class FocObject extends AccessSubject implements FocListener, IFocObject, Item, Item.PropertySetChangeNotifier {
+public abstract class FocObject extends AccessSubject implements FocListener, IFocObject {
 
 	private FocDesc          				thisFocDesc  									= null;
   private FocObject        				masterObject 									= null;
@@ -202,7 +200,7 @@ public abstract class FocObject extends AccessSubject implements FocListener, IF
   
   private ArrayList<Component> relatedGuiComponents = null ;
   
-	private LinkedList<Item.PropertySetChangeListener> propertySetChangeListeners = null;
+//	private LinkedList<Item.PropertySetChangeListener> propertySetChangeListeners = null;
 
   public final static int SUMMARY_VIEW_ID =  -1;
   public final static int DEFAULT_VIEW_ID =   0;
@@ -3262,7 +3260,7 @@ public abstract class FocObject extends AccessSubject implements FocListener, IF
   }
 
   public void afterPropertyModified(FProperty property) {
-  	fireItemPropertySetChange(property);
+
   }
   
   public FocObject getFatherObject(){
@@ -4989,13 +4987,10 @@ public abstract class FocObject extends AccessSubject implements FocListener, IF
    *            identifier of the Property to get
    * @return the Property with the given ID or <code>null</code>
    */
-  public Property getItemProperty(Object id){
-//		int idInt = ((Integer)id).intValue();
-//		return getFocProperty(idInt);
-  	Object obj = iFocData_getDataByPath((String) id);
-  	return (Property) ((obj instanceof Property) ? obj : null);
-    //return getFocPropertyForPath((String) id);
-  }
+//  public Property getItemProperty(Object id){
+//  	Object obj = iFocData_getDataByPath((String) id);
+//  	return (Property) ((obj instanceof Property) ? obj : null);
+//  }
 
   /**
    * Gets the collection of IDs of all Properties stored in the Item.
@@ -5024,9 +5019,9 @@ public abstract class FocObject extends AccessSubject implements FocListener, IF
    * @throws UnsupportedOperationException
    *             if the operation is not supported.
    */
-  public boolean addItemProperty(Object id, Property property) throws UnsupportedOperationException{
-  	return false;
-  }
+//  public boolean addItemProperty(Object id, Property property) throws UnsupportedOperationException{
+//  	return false;
+//  }
 
   /**
    * Removes the Property identified by ID from the Item.
@@ -5051,23 +5046,23 @@ public abstract class FocObject extends AccessSubject implements FocListener, IF
 	 * @param listener
 	 *          the new Listener to be registered.
 	 */
-	@Override
-	public void addPropertySetChangeListener(Item.PropertySetChangeListener listener) {
-		if(propertySetChangeListeners == null){
-			propertySetChangeListeners = new LinkedList<PropertySetChangeListener>();
-		}
-		propertySetChangeListeners.add(listener);
-	}
+//	@Override
+//	public void addPropertySetChangeListener(Item.PropertySetChangeListener listener) {
+//		if(propertySetChangeListeners == null){
+//			propertySetChangeListeners = new LinkedList<PropertySetChangeListener>();
+//		}
+//		propertySetChangeListeners.add(listener);
+//	}
 
 	/**
 	 * @deprecated As of 7.0, replaced by
 	 *             {@link #addPropertySetChangeListener(com.vaadin.data.Item.PropertySetChangeListener)}
 	 **/
-	@Override
-	@Deprecated
-	public void addListener(Item.PropertySetChangeListener listener) {
-		addPropertySetChangeListener(listener);
-	}
+//	@Override
+//	@Deprecated
+//	public void addListener(Item.PropertySetChangeListener listener) {
+//		addPropertySetChangeListener(listener);
+//	}
 
 	/**
 	 * Removes a previously registered property set change listener.
@@ -5075,34 +5070,30 @@ public abstract class FocObject extends AccessSubject implements FocListener, IF
 	 * @param listener
 	 *          the Listener to be removed.
 	 */
-	@Override
-	public void removePropertySetChangeListener(Item.PropertySetChangeListener listener) {
-		if(propertySetChangeListeners != null){
-			propertySetChangeListeners.remove(listener);
-		}
-	}
+//	@Override
+//	public void removePropertySetChangeListener(Item.PropertySetChangeListener listener) {
+//		if(propertySetChangeListeners != null){
+//			propertySetChangeListeners.remove(listener);
+//		}
+//	}
 
-	/**
-	 * @deprecated As of 7.0, replaced by
-	 *             {@link #removePropertySetChangeListener(com.vaadin.data.Item.PropertySetChangeListener)}
-	 **/
-	@Override
-	@Deprecated
-	public void removeListener(Item.PropertySetChangeListener listener) {
-		removePropertySetChangeListener(listener);
-	}
+//	@Override
+//	@Deprecated
+//	public void removeListener(Item.PropertySetChangeListener listener) {
+//		removePropertySetChangeListener(listener);
+//	}
 
 	/**
 	 * Sends a Property set change event to all interested listeners.
 	 */
-	public void fireItemPropertySetChange(FProperty property) {
-		if(propertySetChangeListeners != null){
-			final Object[] l = propertySetChangeListeners.toArray();
-			for(int i = 0; i < l.length; i++){
-				((Item.PropertySetChangeListener) l[i]).itemPropertySetChange(property);
-			}
-		}
-	}
+//	public void fireItemPropertySetChange(FProperty property) {
+//		if(propertySetChangeListeners != null){
+//			final Object[] l = propertySetChangeListeners.toArray();
+//			for(int i = 0; i < l.length; i++){
+//				((Item.PropertySetChangeListener) l[i]).itemPropertySetChange(property);
+//			}
+//		}
+//	}
   
   public IFocData iFocData_getDataByPath(String path){
     return getThisFocDesc().iFocData_getFieldOrPropertyByName(this, path);

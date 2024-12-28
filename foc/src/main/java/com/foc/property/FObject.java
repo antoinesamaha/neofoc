@@ -21,7 +21,6 @@ import com.foc.gui.FObjectPanel;
 import com.foc.gui.InternalFrame;
 import com.foc.list.FocList;
 import com.foc.shared.dataStore.IFocData;
-import com.vaadin.data.util.converter.Converter;
 
 /*
  * //*** SEE TOP EXPLANATION
@@ -1004,33 +1003,33 @@ public class FObject extends FProperty implements FPropertyListener{
   // VAADIN Property implementation
   //-------------------------------
 
-  @Override
-  public Object getValue() {
-    return localReference != null ? localReference.getLong() : 0;
-  }  
+//  @Override
+//  public Object getValue() {
+//    return localReference != null ? localReference.getLong() : 0;
+//  }
   
-  @Override
-  public void setValue(Object newValue) throws ReadOnlyException, Converter.ConversionException {
-    if(newValue instanceof Long || newValue instanceof Integer){
-    	if(localReference != null){
-    		long newValueInt = 0;
-    		if(newValue instanceof Long){
-    			newValueInt = ((Long)newValue).longValue();
-    		}else{
-    			newValueInt = ((Integer)newValue).intValue();
-    		}
-    		if(newValueInt != localReference.getLong()){
-    			localReference.setLong(newValueInt);
-    			reactToLocalReferenceModification_AndNotifyListeners();
-    		}
-    	}else{
-    		Globals.logString("Local reference is null in FObject");
-    	}
-    }else{
-      setObject(newValue);
-    }
-    //setObject(newValue);
-  }
+//  @Override
+//  public void setValue(Object newValue) throws ReadOnlyException, Converter.ConversionException {
+//    if(newValue instanceof Long || newValue instanceof Integer){
+//    	if(localReference != null){
+//    		long newValueInt = 0;
+//    		if(newValue instanceof Long){
+//    			newValueInt = ((Long)newValue).longValue();
+//    		}else{
+//    			newValueInt = ((Integer)newValue).intValue();
+//    		}
+//    		if(newValueInt != localReference.getLong()){
+//    			localReference.setLong(newValueInt);
+//    			reactToLocalReferenceModification_AndNotifyListeners();
+//    		}
+//    	}else{
+//    		Globals.logString("Local reference is null in FObject");
+//    	}
+//    }else{
+//      setObject(newValue);
+//    }
+//    //setObject(newValue);
+//  }
 
   //-------------------------------
   

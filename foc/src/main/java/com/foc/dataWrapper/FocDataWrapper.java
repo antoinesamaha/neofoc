@@ -21,7 +21,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 
-import me.everpro.event.EverproItemSetChangeEvent;
+//import me.everpro.event.EverproItemSetChangeEvent;
 
 import com.foc.Globals;
 import com.foc.admin.FocUser;
@@ -53,26 +53,22 @@ import com.foc.property.FObject;
 import com.foc.property.FProperty;
 import com.foc.shared.dataStore.IFocData;
 import com.foc.util.Utils;
-import com.vaadin.data.Container;
-import com.vaadin.data.Item;
-import com.vaadin.data.Property;
-import com.vaadin.data.util.filter.UnsupportedFilterException;
 
 @SuppressWarnings("serial")
-public abstract class FocDataWrapper implements Container, Container.Filterable, Container.PropertySetChangeNotifier, Container.ItemSetChangeNotifier, IFocData { 
+public abstract class FocDataWrapper implements IFocData {
   //abstract method
   public abstract FocList getFocList();
 
 //  protected ITableTree tableTree = null;
   protected IFocData focData = null;
   protected ArrayList<FocObject> visibleListElements = null;
-  protected ArrayList<Filter> filterArrayList = null;
+//  protected ArrayList<Filter> filterArrayList = null;
   protected FocListOrderFocObject listOrder = null;
   protected FocObject                 initialValue         = null;
   protected FocListElement            initialElement       = null;
-  private   ArrayList<PropertySetChangeListener> propertySetChangeListenerArray = null;
+//  private   ArrayList<PropertySetChangeListener> propertySetChangeListenerArray = null;
   private   String                    filterExpression_ForXMLLayout = null;  
-  private   HashMap<String, Filter>              filtersMap                     = null;
+//  private   HashMap<String, Filter>              filtersMap                     = null;
   
   private ITableTreeDelegate iTableTreeDelegate = null;
 	protected boolean byCompany     = false;
@@ -104,9 +100,9 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
 		        if(evt.getID()==FocEvent.ID_ITEM_ADD || evt.getID() == FocEvent.ID_ITEM_REMOVE) {
 	        		FocObject focObj = (FocObject) evt.getEventSubject();
 	        		long      ref    = focObj != null ? focObj.getReferenceInt() : 0;
-	        		int       everproEventID = evt.getID()==FocEvent.ID_ITEM_ADD ? EverproItemSetChangeEvent.ADD_EVENT : EverproItemSetChangeEvent.DELETE_EVENT;
-		        	EverproItemSetChangeEvent event = new EverproItemSetChangeEvent((Container)FocDataWrapper.this, everproEventID, (Object)ref);
-		        	refreshGuiForContainerChanges(event);
+//	        		int       everproEventID = evt.getID()==FocEvent.ID_ITEM_ADD ? EverproItemSetChangeEvent.ADD_EVENT : EverproItemSetChangeEvent.DELETE_EVENT;
+//		        	EverproItemSetChangeEvent event = new EverproItemSetChangeEvent((Container)FocDataWrapper.this, everproEventID, (Object)ref);
+//		        	refreshGuiForContainerChanges(event);
 		        }else if(evt.getID() == FocEvent.ID_BEFORE_REFERENCE_SET){
 		        	if(getTableTreeDelegate() != null && evt.getEventSubject() instanceof FocObject){
 		          	getTableTreeDelegate().listListenerCall_BeforeObjectReferenceSet((FocObject) evt.getEventSubject());
@@ -171,7 +167,7 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
     }
     focListener = null;
     
-    removeAllContainerFilters();
+//    removeAllContainerFilters();
     resetVisibleListElements();
     
     focData = null;
@@ -183,16 +179,16 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
     	focListPropertyListener_ToRefreshGui.dispose();
     	focListPropertyListener_ToRefreshGui = null;
     }
-    if(propertySetChangeListenerArray != null){
-    	propertySetChangeListenerArray.clear();
-    	propertySetChangeListenerArray = null;
-    }
+//    if(propertySetChangeListenerArray != null){
+//    	propertySetChangeListenerArray.clear();
+//    	propertySetChangeListenerArray = null;
+//    }
 //    tableTree = null;
     iTableTreeDelegate = null;
-    if(filtersMap != null){
-    	filtersMap.clear();
-    	filtersMap = null;
-    }
+//    if(filtersMap != null){
+//    	filtersMap.clear();
+//    	filtersMap = null;
+//    }
   }
   
   public void removeSiteFilter(){
@@ -201,13 +197,9 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
   }
   
   public void refreshGuiForContainerChanges(){
-  	refreshGuiForContainerChanges(null);
-  }
-  
-  public void refreshGuiForContainerChanges(EverproItemSetChangeEvent event){
 	  resetVisibleListElements();
 	  //if(getTableTree() != null) getTableTree().applyFocListAsContainer();
-	  notifyItemSetChange(event);
+//	  notifyItemSetChange();
   }
 
   public IFocData getFocData(){
@@ -245,10 +237,10 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
   public void addFilterByExpression(IFocData focData, String expression){
   	if(expression != null && !expression.isEmpty()){
   		ListFilterUsingAFormulaExpression filter = new ListFilterUsingAFormulaExpression(focData, expression);
-  		addContainerFilter(filter);
+//  		addContainerFilter();
   		if(expression != null && !expression.isEmpty()){
 //  			getFiltersMap(true).put(expression, filter);
-  			putFilter(expression, filter);
+//  			putFilter(expression, filter);
   		}
   	}
   }
@@ -256,103 +248,8 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
   public void addFilterByPropertyValue(String propertyDataPath, Object value){
     if(propertyDataPath != null && !propertyDataPath.isEmpty()){
       ListFilterUsingPropertyValue filter = new ListFilterUsingPropertyValue(propertyDataPath, value);
-      addContainerFilter(filter);
     }
   }
-  
-	public void adjustPropertiesForNewItemAccordingTofilter(FocObject newObj){
-		if(newObj != null){
-			ArrayList<Filter> arrayFilters = getFilterArrayList(false);
-			if(arrayFilters != null){
-				for(int i=0; i<arrayFilters.size(); i++){
-					Filter filter = arrayFilters.get(i);
-					if(filter instanceof ListFilterUsingPropertyValue){
-						((ListFilterUsingPropertyValue)filter).adjustValue(newObj);
-					}
-				}
-			}
-		}
-	}
-  
-//  public void setTableTree(ITableTree tableTree) {
-//    this.tableTree = tableTree;
-//    if(tableTree != null){
-//      if(tableTree.getTableTreeDelegate() != null){
-//        FocXMLAttributes attr = (FocXMLAttributes) getTableTree().getTableTreeDelegate().getAttributes();
-//        String expression = attr != null ? attr.getValue(FXML.ATT_FILTER_EXPRESSION) : null;
-//        if(!Utils.isStringEmpty(expression)){
-//        	addFilterByExpression(expression);
-//        }
-//        
-//        final String removeZeros = attr != null ? attr.getValue(FXML.ATT_REMOVE_ZEROS) : null;
-//        if(removeZeros != null){
-//        	Filter filter = new Filter() {
-//						
-//						@Override
-//						public boolean passesFilter(Object itemId, Item item) throws UnsupportedOperationException {
-//							boolean visible = true;      
-//				      FocObject focObj = (FocObject) item;
-//				      if(removeZeros != null && focObj != null){
-//				      	IFocData focData = focObj.iFocData_getDataByPath(removeZeros);
-//				      	if(focData != null){
-//					      	if(focData instanceof FDouble){
-//					      		FProperty prop = (FProperty) focData;
-//					      		if(prop.getDouble() == 0){
-//					            visible = false;
-//					      		}
-//					      	}else if(focData instanceof FProperty){
-//					      		FProperty prop = (FProperty) focData;
-//					      		if(prop.getValue() != null && prop.getValue().toString().equals("0")){
-//					            visible = false;
-//					      		}
-//					      	}
-//				      	}
-//				      }
-//				      return visible;
-//						}
-//						
-//						@Override
-//						public boolean appliesToProperty(Object propertyId) {
-//							return false;
-//						}
-//					};
-//					addContainerFilter(filter);
-//					getFiltersMap(true).put(removeZeros, filter);
-//        }
-//        
-//        String  sortingExpression = attr != null ? attr.getValue(FXML.ATT_SORTING_EXPRESSION) : null;
-//        setSortingExpression(sortingExpression);        
-//
-//        /*
-//        if(sortingExpression != null){
-//          listOrder = new FocListOrderFocObject();
-//          
-//          if(sortingExpression.startsWith("-")){
-//          	sortingExpression = sortingExpression.substring(1);
-//          	listOrder.setReverted(true);
-//          }
-//          
-//          StringTokenizer stringTokenizer = new StringTokenizer(sortingExpression, ",");
-//          while(stringTokenizer.hasMoreTokens()){
-//            String sortingName = stringTokenizer.nextToken();
-//            
-//            if(getFocList() != null){
-//	      	    PropertyAndFieldPath propertyAndFieldPath = FAttributeLocationProperty.newFieldPath_PropertyAndField(false, sortingName, getFocList().getFocDesc(), null, false);
-//	      	    FFieldPath           fieldPath            = propertyAndFieldPath.getFieldPath();
-//	//            FFieldPath fieldPath = FFieldPath.newFieldPath(getFocList().getFocDesc(), sortingName);
-//	            if(fieldPath != null){
-//	              listOrder.addField(fieldPath);
-//	            }else{
-//	              Globals.showNotification("Could not resolve sorting expression: ", sortingName, IFocEnvironment.TYPE_WARNING_MESSAGE);
-//	            }
-//            }
-//          }
-//        } 
-//        */       
-//        
-//      }
-//    }
-//  }
   
   public void setSortingComparator(FocListOrderFocObject comparator){
    	if(listOrder != null) listOrder.dispose();
@@ -451,15 +348,15 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
     if(include){
       //The initialValue should be visible in the selections no matter what.
       if(getInitialValue() == null || !focObj.equalsRef(initialValue)){
-        ArrayList<Filter> filters = getFilterArrayList(false);
-        if(filters != null && filters.size() > 0){
-          for(int i=0; i<filters.size() && include; i++){
-            Filter fltr = filters.get(i);
-            if(focObj.getReference() != null){
-            	include = include && fltr.passesFilter(focObj.getReference().getLong(), focObj);
-            }
-          }
-        }
+//        ArrayList<Filter> filters = getFilterArrayList(false);
+//        if(filters != null && filters.size() > 0){
+//          for(int i=0; i<filters.size() && include; i++){
+//            Filter fltr = filters.get(i);
+//            if(focObj.getReference() != null){
+//            	include = include && fltr.passesFilter(focObj.getReference().getLong(), focObj);
+//            }
+//          }
+//        }
       }
     }
     
@@ -522,19 +419,6 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
     return contains;
   }
   
-  @Override
-  public Item getItem(Object itemId) {
-    return getFocList() != null ? getFocList().getItem(itemId) : null;
-  }
-
-  @Override
-  public Collection<?> getItemIds() {
-  	if(referencesCollection == null){
-  		referencesCollection = new ReferencesCollection(this);
-  	}
-    return referencesCollection;
-  }
-
   protected FocObject getContainerProperty_GetFocObject(Object itemId){
   	FocObject obj = null;
     
@@ -552,18 +436,7 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
     return obj;
   }
   
-  @Override
-  public Property getContainerProperty(Object itemId, Object propertyId) {
-    Property property = null;
-    
-    if(itemId != null && propertyId != null){
-      FocObject obj = getContainerProperty_GetFocObject(itemId);
-      property = obj != null ? obj.getItemProperty(propertyId) : null;
-    }   
-    return property;
-  }
-
-  @Override
+//  @Override
   public Class<?> getType(Object propertyId) {
   	if(propertyId != null && !propertyId.toString().isEmpty() && propertyId.toString().contains(IFocData.DATA_PATH_SIGN)){
   		propertyId = propertyId.toString().substring(0, propertyId.toString().indexOf(IFocData.DATA_PATH_SIGN));
@@ -571,7 +444,7 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
     return getFocList() != null ? getFocList().getType(propertyId) : null;
   }
 
-  @Override
+//  @Override
   public int size() {
     return getVisibleListElements(true).size();
   }
@@ -585,43 +458,29 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
   	return focObj;
   }
 
-  @Override
+//  @Override
   public boolean containsId(Object itemId) {
     return containsReference((long)itemId);
   }
 
-  @Override
-  public Item addItem(Object itemId) throws UnsupportedOperationException {
-    Item item = getFocList() != null ? getFocList().addItem(itemId) : null;
-    resetVisibleListElements();
-    return item;
-  }
-
-  @Override
+//  @Override
   public Object addItem() throws UnsupportedOperationException {
     Object obj = getFocList() != null ? getFocList().addItem() : null;
     resetVisibleListElements();
     return obj;
   }
 
-  @Override
-  public boolean removeItem(Object itemId) throws UnsupportedOperationException {
-    boolean rem = getFocList() != null ? getFocList().removeItem(itemId) : false;
-    resetVisibleListElements();
-    return rem;
-  }
-
-  @Override
+//  @Override
   public boolean addContainerProperty(Object propertyId, Class<?> type, Object defaultValue) throws UnsupportedOperationException {
     return getFocList() != null ? getFocList().addContainerProperty(propertyId, type, defaultValue) : false;
   }
 
-  @Override
+//  @Override
   public boolean removeContainerProperty(Object propertyId) throws UnsupportedOperationException {
     return getFocList() != null ? getFocList().removeContainerProperty(propertyId) : false;
   }
 
-  @Override
+//  @Override
   public boolean removeAllItems() throws UnsupportedOperationException {
     boolean ret = getFocList() != null ? getFocList().removeAllItems() : false;
     resetVisibleListElements();
@@ -769,7 +628,7 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
     return getFocList() != null ? getFocList().iFocData_getDataByPath(path) : null;
   }
 
-  public class ListFilterUsingAFormulaExpression implements Filter {
+  public class ListFilterUsingAFormulaExpression {
 
     private FocSimpleFormulaContext filterFormulaContext = null;
     private IFocData                focData              = null;
@@ -787,22 +646,22 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
       }     
     }
     
-    @Override
-    public boolean passesFilter(Object itemId, Item item) throws UnsupportedOperationException {
-      boolean visible = true;      
-      if(filterFormulaContext != null){
-        visible = filterFormulaContext.computeBooleanValue((FocObject) item);
-      }
-      return visible;
-    }
+//    @Override
+//    public boolean passesFilter(Object itemId, Item item) throws UnsupportedOperationException {
+//      boolean visible = true;
+//      if(filterFormulaContext != null){
+//        visible = filterFormulaContext.computeBooleanValue((FocObject) item);
+//      }
+//      return visible;
+//    }
 
-    @Override
+//    @Override
     public boolean appliesToProperty(Object propertyId) {
       return false;
     }
   }
   
-  public class ListFilterUsingPropertyValue implements Filter {
+  public class ListFilterUsingPropertyValue {
 
     private String propertyDataPath = null;
     private Object propertyValue    = null;
@@ -815,7 +674,7 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
     public void adjustValue(FocObject focObj){
     	IFocData focData = focObj.iFocData_getDataByPath(propertyDataPath);
     	if(focData != null && focData instanceof FProperty){
-    		((FProperty)focData).setValue(propertyValue);
+//    		((FProperty)focData).setValue(propertyValue);
     	}
     }
     
@@ -845,24 +704,24 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
     	return equals;
     }
     
-    @Override
-    public boolean passesFilter(Object itemId, Item item) throws UnsupportedOperationException {
-      boolean visible = false;      
-      FocObject focObj = (FocObject) item;
-      if(propertyDataPath != null && focObj != null){
-      	IFocData focData = focObj.iFocData_getDataByPath(propertyDataPath);
-      	if(focData instanceof FProperty){
-      		FProperty prop = (FProperty) focData;
-      		if(			(prop.getValue() == null && propertyValue == null) 
-      				|| 	(prop.getValue() != null && propertyValue != null && propertyEqualsValue(prop))){
-            visible = true;
-      		}
-      	}
-      }
-      return visible;
-    }
+//    @Override
+//    public boolean passesFilter(Object itemId, Item item) throws UnsupportedOperationException {
+//      boolean visible = false;
+//      FocObject focObj = (FocObject) item;
+//      if(propertyDataPath != null && focObj != null){
+//      	IFocData focData = focObj.iFocData_getDataByPath(propertyDataPath);
+//      	if(focData instanceof FProperty){
+//      		FProperty prop = (FProperty) focData;
+//      		if(			(prop.getValue() == null && propertyValue == null)
+//      				|| 	(prop.getValue() != null && propertyValue != null && propertyEqualsValue(prop))){
+//            visible = true;
+//      		}
+//      	}
+//      }
+//      return visible;
+//    }
 
-    @Override
+//    @Override
     public boolean appliesToProperty(Object propertyId) {
       return false;
     }
@@ -893,118 +752,118 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
   // Filter implementation
   // ------------------------------------------------------
   
-  public ArrayList<Filter> getFilterArrayList(boolean create){
-    if(filterArrayList == null && create){
-      filterArrayList = new ArrayList<Filter>();
-    }
-    return filterArrayList;
-  }   
-  
-  @Override
-  public void addContainerFilter(Filter filter) throws UnsupportedFilterException {
-    getFilterArrayList(true).add(filter);
-    resetVisibleListElements();
-  }
-  
-  public void putFilter(String expression, Filter filter){
-  	getFiltersMap(true).put(expression, filter);
-  }
-  
-  public Filter getFilter(String expression){
-  	return getFiltersMap(true).get(expression);
-  }
-  
-  private HashMap<String, Filter> getFiltersMap(boolean create){
-  	if(filtersMap == null && create){
-  		filtersMap = new HashMap<String, Container.Filter>();
-  	}
-  	return filtersMap;
-  }
-  
-  @Override
-  public void removeContainerFilter(Filter filter) {
-  	removeContainerFilter_ForDispose(filter);
-    resetVisibleListElements();
-  }
-  
-  public void removeContainerFilter_ForDispose(Filter filter) {
-  	if(getFilterArrayList(false) != null){
-  		getFilterArrayList(false).remove(filter);
-  	}
-  }
-
-  @Override
-  public void removeAllContainerFilters() {
-    ArrayList<Filter> arrayFilters = getFilterArrayList(false);
-    if(arrayFilters != null){
-    	for(int i=arrayFilters.size()-1; i>=0 ; i--){
-    		arrayFilters.remove(i);
-    	}
-    }
-    resetVisibleListElements();    
-  }
-  
-  @Override
-  public Collection<Filter> getContainerFilters(){
-  	ArrayList<Filter> arrayFilters = getFilterArrayList(true);
-  	return arrayFilters;
-  }
+//  public ArrayList<Filter> getFilterArrayList(boolean create){
+//    if(filterArrayList == null && create){
+//      filterArrayList = new ArrayList<Filter>();
+//    }
+//    return filterArrayList;
+//  }
+//
+//  @Override
+//  public void addContainerFilter(Filter filter) throws UnsupportedFilterException {
+//    getFilterArrayList(true).add(filter);
+//    resetVisibleListElements();
+//  }
+//
+//  public void putFilter(String expression, Filter filter){
+//  	getFiltersMap(true).put(expression, filter);
+//  }
+//
+//  public Filter getFilter(String expression){
+//  	return getFiltersMap(true).get(expression);
+//  }
+//
+//  private HashMap<String, Filter> getFiltersMap(boolean create){
+//  	if(filtersMap == null && create){
+//  		filtersMap = new HashMap<String, Container.Filter>();
+//  	}
+//  	return filtersMap;
+//  }
+//
+//  @Override
+//  public void removeContainerFilter(Filter filter) {
+//  	removeContainerFilter_ForDispose(filter);
+//    resetVisibleListElements();
+//  }
+//
+//  public void removeContainerFilter_ForDispose(Filter filter) {
+//  	if(getFilterArrayList(false) != null){
+//  		getFilterArrayList(false).remove(filter);
+//  	}
+//  }
+//
+//  @Override
+//  public void removeAllContainerFilters() {
+//    ArrayList<Filter> arrayFilters = getFilterArrayList(false);
+//    if(arrayFilters != null){
+//    	for(int i=arrayFilters.size()-1; i>=0 ; i--){
+//    		arrayFilters.remove(i);
+//    	}
+//    }
+//    resetVisibleListElements();
+//  }
+//
+//  @Override
+//  public Collection<Filter> getContainerFilters(){
+//  	ArrayList<Filter> arrayFilters = getFilterArrayList(true);
+//  	return arrayFilters;
+//  }
   // ------------------------------------------------------
 
-  private ArrayList<PropertySetChangeListener> getPropertySetChangeListenerArray(boolean create){
-  	if(propertySetChangeListenerArray == null && create){
-  		propertySetChangeListenerArray = new ArrayList<Container.PropertySetChangeListener>();
-  	}
-  	return propertySetChangeListenerArray;
-  }
+//  private ArrayList<PropertySetChangeListener> getPropertySetChangeListenerArray(boolean create){
+//  	if(propertySetChangeListenerArray == null && create){
+//  		propertySetChangeListenerArray = new ArrayList<Container.PropertySetChangeListener>();
+//  	}
+//  	return propertySetChangeListenerArray;
+//  }
 
   public void firePropertySetChangeEvent(){
   	if(!isRefreshGuiDisabled()){
-	  	ArrayList<PropertySetChangeListener> array = getPropertySetChangeListenerArray(false);
-	  	if(array != null && array.size() > 0){
-		  	PropertySetChangeEvent event = new PropertySetChangeEvent() {
-					@Override
-					public Container getContainer() {
-						return FocDataWrapper.this;
-					}
-				};
-				
-		  	for(int i=0; i<array.size(); i++){
-		  		PropertySetChangeListener listener = array.get(i);
-		  		listener.containerPropertySetChange(event);
-		  	}
-	  	}
+//	  	ArrayList<PropertySetChangeListener> array = getPropertySetChangeListenerArray(false);
+//	  	if(array != null && array.size() > 0){
+//		  	PropertySetChangeEvent event = new PropertySetChangeEvent() {
+//					@Override
+//					public Container getContainer() {
+//						return FocDataWrapper.this;
+//					}
+//				};
+//
+//		  	for(int i=0; i<array.size(); i++){
+//		  		PropertySetChangeListener listener = array.get(i);
+//		  		listener.containerPropertySetChange(event);
+//		  	}
+//	  	}
   	}
   }
   
-	@Override
-	public void addPropertySetChangeListener(PropertySetChangeListener listener) {
-		ArrayList<PropertySetChangeListener> propertySetChangeListeners = getPropertySetChangeListenerArray(true);
-		if(propertySetChangeListeners != null){
-			propertySetChangeListeners.add(listener);
-		}
-	}
+//	@Override
+//	public void addPropertySetChangeListener(PropertySetChangeListener listener) {
+//		ArrayList<PropertySetChangeListener> propertySetChangeListeners = getPropertySetChangeListenerArray(true);
+//		if(propertySetChangeListeners != null){
+//			propertySetChangeListeners.add(listener);
+//		}
+//	}
+//
+//	@Override
+//	@Deprecated
+//	public void addListener(PropertySetChangeListener listener) {
+//		addPropertySetChangeListener(listener);
+//	}
+//
 
-	@Override
-	@Deprecated
-	public void addListener(PropertySetChangeListener listener) {
-		addPropertySetChangeListener(listener);
-	}
-
-
-	@Override
-	public void removePropertySetChangeListener(PropertySetChangeListener listener) {
-		ArrayList<PropertySetChangeListener> propertySetChangeListeners = getPropertySetChangeListenerArray(false);
-		if(propertySetChangeListeners != null){
-			propertySetChangeListeners.remove(listener);
-		}
-	}
-
-	@Override
-	@Deprecated
-	public void removeListener(PropertySetChangeListener listener) {
-		removePropertySetChangeListener(listener);
-	}
+//	@Override
+//	public void removePropertySetChangeListener(PropertySetChangeListener listener) {
+//		ArrayList<PropertySetChangeListener> propertySetChangeListeners = getPropertySetChangeListenerArray(false);
+//		if(propertySetChangeListeners != null){
+//			propertySetChangeListeners.remove(listener);
+//		}
+//	}
+//
+//	@Override
+//	@Deprecated
+//	public void removeListener(PropertySetChangeListener listener) {
+//		removePropertySetChangeListener(listener);
+//	}
 	
 	public int getLineNumberForFocObject(FocObject focObj){
 		ArrayList<FocObject> arrayList = getVisibleListElements(true);
@@ -1028,75 +887,65 @@ public abstract class FocDataWrapper implements Container, Container.Filterable,
 	// -------------------------------
 	// Container.ItemSetChangeNotifier 
 	// -------------------------------
-	private ArrayList<ItemSetChangeListener> itemSetChangeListenerArray = null;
-	
-	@Override
-	public void addItemSetChangeListener(ItemSetChangeListener listener) {
-		if(itemSetChangeListenerArray == null){
-			itemSetChangeListenerArray = new ArrayList<ItemSetChangeListener>(); 
-		}
-		itemSetChangeListenerArray.add(listener);
-	}
-
-	@Override
-	@Deprecated
-	public void addListener(ItemSetChangeListener listener) {
-		addItemSetChangeListener(listener);
-	}
-
-	@Override
-	public void removeItemSetChangeListener(ItemSetChangeListener listener) {
-		if(itemSetChangeListenerArray != null){
-			itemSetChangeListenerArray.remove(listener);
-		}
-	}
-
-	@Override
-	@Deprecated
-	public void removeListener(ItemSetChangeListener listener) {
-		removeItemSetChangeListener(listener);
-	}
+//	private ArrayList<ItemSetChangeListener> itemSetChangeListenerArray = null;
+//
+//	@Override
+//	public void addItemSetChangeListener(ItemSetChangeListener listener) {
+//		if(itemSetChangeListenerArray == null){
+//			itemSetChangeListenerArray = new ArrayList<ItemSetChangeListener>();
+//		}
+//		itemSetChangeListenerArray.add(listener);
+//	}
+//
+//	@Override
+//	@Deprecated
+//	public void addListener(ItemSetChangeListener listener) {
+//		addItemSetChangeListener(listener);
+//	}
+//
+//	@Override
+//	public void removeItemSetChangeListener(ItemSetChangeListener listener) {
+//		if(itemSetChangeListenerArray != null){
+//			itemSetChangeListenerArray.remove(listener);
+//		}
+//	}
+//
+//	@Override
+//	@Deprecated
+//	public void removeListener(ItemSetChangeListener listener) {
+//		removeItemSetChangeListener(listener);
+//	}
   
-	public void notifyItemSetChange(){
-		notifyItemSetChange(null);
-	}
-	
-	public void notifyItemSetChange(EverproItemSetChangeEvent everproEvent){
-		if(itemSetChangeListenerArray != null){
-			for(int i=0; i<itemSetChangeListenerArray.size(); i++){
-				ItemSetChangeListener listener = itemSetChangeListenerArray.get(i);
-				ItemSetChangeEvent event = everproEvent;
-				if(event == null){
-					event = new ItemSetChangeEvent() {
-						@Override
-						public Container getContainer() {
-							return FocDataWrapper.this;
-						}
-					};
-				}
-				listener.containerItemSetChange(event);
-			}
-		}
-	}
+//	public void notifyItemSetChange(){
+//		if(itemSetChangeListenerArray != null){
+//			for(int i=0; i<itemSetChangeListenerArray.size(); i++){
+//				ItemSetChangeListener listener = itemSetChangeListenerArray.get(i);
+//				ItemSetChangeEvent event = everproEvent;
+//				if(event == null){
+//					event = new ItemSetChangeEvent() {
+//						@Override
+//						public Container getContainer() {
+//							return FocDataWrapper.this;
+//						}
+//					};
+//				}
+//				listener.containerItemSetChange(event);
+//			}
+//		}
+//	}
 	// -------------------------------
 	
-	public void removeFilter_FocXMLLayout(){
-		if(filterExpression_ForXMLLayout != null){
-			removeFilterByName(filterExpression_ForXMLLayout);
-		}
-	}
-	
-	public void removeFilterByName(String filterExpression){
-		if(filterExpression != null){
-			Filter filter = getFiltersMap(false) != null ? getFiltersMap(false).get(filterExpression) : null;
-			if(filter != null){
-				removeContainerFilter(filter);
-			}
-		}
-	}
+//	public void removeFilterByName(String filterExpression){
+//		if(filterExpression != null){
+//			Filter filter = getFiltersMap(false) != null ? getFiltersMap(false).get(filterExpression) : null;
+//			if(filter != null){
+//				removeContainerFilter(filter);
+//			}
+//		}
+//	}
 	
   //20150831-Begin
-  @Override
+//  @Override
   public Collection<?> getContainerPropertyIds() {
 //    return getFocList() != null ? getFocList().getContainerPropertyIds() : null;
 		return getTableTreeDelegate() != null ? getTableTreeDelegate().newVisibleColumnIds() : null;

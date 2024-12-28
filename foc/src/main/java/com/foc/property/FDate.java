@@ -33,7 +33,7 @@ import com.foc.desc.FocObject;
 import com.foc.desc.field.FDateField;
 import com.foc.desc.field.FField;
 import com.foc.util.Utils;
-import com.vaadin.data.util.converter.Converter;
+//import com.vaadin.data.util.converter.Converter;
 
 /**
  * @author 01Barmaja
@@ -356,8 +356,8 @@ public class FDate extends FProperty {
     return isEmpty() ? null : getDate();
   }
 
-  @Override
-  public void setValue(Object newValue) throws ReadOnlyException, Converter.ConversionException {
+//  @Override
+  public void setValue(Object newValue) {
 		if(newValue == null){
 			if (isAllowNullProperties()) {
 				boolean notifyListeners = !isValueNull();

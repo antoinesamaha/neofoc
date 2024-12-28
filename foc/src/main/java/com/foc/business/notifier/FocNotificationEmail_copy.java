@@ -32,7 +32,6 @@ import com.foc.desc.FocConstructor;
 import com.foc.desc.FocObject;
 import com.foc.email.EMailAccount;
 import com.foc.shared.dataStore.IFocData;
-import com.vaadin.ui.JavaScript;
 
 @SuppressWarnings("serial")
 public class FocNotificationEmail_copy extends FocObject implements FocNotificationEmailConst {
@@ -366,7 +365,6 @@ public class FocNotificationEmail_copy extends FocObject implements FocNotificat
 	  	text = text.replace('\'', '-');
 	  	String recipients = getRecipients() != null ? getRecipients().replaceAll(" ", "") : "";
 	  	String javaScript = "var win = window.open('mailto:"+recipients+"?body="+text+"', '_blank'); win.close();";
-	    JavaScript.getCurrent().execute(javaScript);
   	}
   }
 }

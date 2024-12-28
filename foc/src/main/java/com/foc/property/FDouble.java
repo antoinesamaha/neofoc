@@ -11,7 +11,6 @@ import com.foc.desc.FocObject;
 import com.foc.desc.field.FField;
 import com.foc.desc.field.FNumField;
 import com.foc.util.FocMath;
-import com.vaadin.data.util.converter.Converter.ConversionException;
 
 /**
  * @author 01Barmaja
@@ -236,8 +235,7 @@ public class FDouble extends FProperty {
     return getObject();
   }
 
-  @Override
-  public void setValue(Object newValue) throws ReadOnlyException, ConversionException {
+  public void setValue(Object newValue) {
 //    setTableDisplayObject(newValue);
   	setObject(newValue, true);
   }

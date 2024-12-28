@@ -69,15 +69,12 @@ import com.foc.shared.json.B01JsonBuilder;
 import com.foc.util.FocMath;
 import com.foc.util.IFocIterator;
 import com.foc.util.Utils;
-import com.vaadin.data.Container;
-import com.vaadin.data.Item;
-import com.vaadin.data.Property;
 
 /**
  * @author 01Barmaja - Antoine SAMAHA
  */
 @SuppressWarnings("serial")
-public class FocList extends AccessSubject implements IFocList, Container {
+public class FocList extends AccessSubject implements IFocList {
 	public static final String FILTER_KEY_FOR_INCREMENTAL_UPDATE = "_INCREMENTAL_UPDATE";
 	
   public static final int NONE           = 0;
@@ -2308,8 +2305,8 @@ public class FocList extends AccessSubject implements IFocList, Container {
 	//-----------------------------------------------
 	//-----------------------------------------------
 	
-	@Override
-	public Item getItem(Object itemId) {
+//	@Override
+	public FocObject getItem(Object itemId) {
 		FocObject obj = null;
 		if(itemId != null){
 			long ref = ((Long)itemId).longValue();
@@ -2318,13 +2315,13 @@ public class FocList extends AccessSubject implements IFocList, Container {
 		return obj;
 	}
 
-	@Override
+//	@Override
 	public Collection<?> getContainerPropertyIds() {
 		FocDesc focDesc = getFocDesc();
 		return focDesc != null ? focDesc.vaadin_getFieldNames() : null;
 	}
 
-	@Override
+//	@Override
 	public Collection<?> getItemIds() {
 	  Collection<Long> returnedArray = null;
     if(getFocDesc().isByCompany()){
@@ -2380,20 +2377,20 @@ public class FocList extends AccessSubject implements IFocList, Container {
 		//return elementsByRef != null ? elementsByRef.keySet() : new ArrayList<Integer>();
 	}
 
-	@Override
-	public Property getContainerProperty(Object itemId, Object propertyId) {
-		Property property = null;
-		if(itemId != null && propertyId != null){
-			long ref     = ((Long)itemId).longValue();
-			//int fieldID = ((Integer)propertyId).intValue();
+//	@Override
+//	public Property getContainerProperty(Object itemId, Object propertyId) {
+//		Property property = null;
+//		if(itemId != null && propertyId != null){
+//			long ref     = ((Long)itemId).longValue();
+//			//int fieldID = ((Integer)propertyId).intValue();
+//
+//			FocObject obj = searchByReference(ref);
+//			property = obj != null ? obj.getItemProperty(propertyId) : null;
+//		}
+//		return property;
+//	}
 
-			FocObject obj = searchByReference(ref);
-			property = obj != null ? obj.getItemProperty(propertyId) : null;
-		}		
-		return property;
-	}
-
-	@Override
+//	@Override
 	public Class<?> getType(Object propertyId) {
 		FocDesc focDesc = getFocDesc();
 		//int     fieldID = ((Integer)propertyId).intValue();
@@ -2402,44 +2399,44 @@ public class FocList extends AccessSubject implements IFocList, Container {
 		return field != null ? field.vaadin_getClass() : null; 
 	}
 
-	@Override
+//	@Override
 	public boolean containsId(Object itemId) {
 		return getItem(itemId) != null;
 	}
 
-	@Override
-	public Item addItem(Object itemId) throws UnsupportedOperationException {
-		return null;
-	}
+//	@Override
+//	public Item addItem(Object itemId) throws UnsupportedOperationException {
+//		return null;
+//	}
 
-	@Override
+//	@Override
 	public Object addItem() throws UnsupportedOperationException {
 		return newEmptyItem();
 	}
 
-	@Override
-	public boolean removeItem(Object itemId) throws UnsupportedOperationException {
-		boolean done = false;
-		FocObject obj = (FocObject) getItem(itemId);
-		if(obj != null){
-      obj.setDeleted(true);		  
-			//remove(obj);
-			done = true;
-		}
-		return done;
-	}
+//	@Override
+//	public boolean removeItem(Object itemId) throws UnsupportedOperationException {
+//		boolean done = false;
+//		FocObject obj = (FocObject) getItem(itemId);
+//		if(obj != null){
+//      obj.setDeleted(true);
+//			//remove(obj);
+//			done = true;
+//		}
+//		return done;
+//	}
 
-	@Override
+//	@Override
 	public boolean addContainerProperty(Object propertyId, Class<?> type, Object defaultValue) throws UnsupportedOperationException {
 	  throw new UnsupportedOperationException();	  
 	}
 
-	@Override
+//	@Override
 	public boolean removeContainerProperty(Object propertyId) throws UnsupportedOperationException {
 	  throw new UnsupportedOperationException();
 	}
 
-	@Override
+//	@Override
 	public boolean removeAllItems() throws UnsupportedOperationException {
 		removeAll();
 		return true;

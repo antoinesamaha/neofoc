@@ -10,7 +10,6 @@ import com.foc.Globals;
 import com.foc.desc.FocObject;
 import com.foc.desc.FocRef;
 import com.foc.desc.field.FField;
-import com.vaadin.data.util.converter.Converter;
 
 /**
  * @author 01Barmaja
@@ -202,13 +201,13 @@ public class FReference extends FProperty {
   // Vaadin Property
   // ---------------
   
-	@Override
-	public Object getValue() {
-		return getString();
-	}
-
-	@Override
-	public void setValue(Object newValue) throws ReadOnlyException, Converter.ConversionException {
-		setString((String) newValue);
-	}
+//	@Override
+//	public Object getValue() {
+//		return getString();
+//	}
+//
+//	@Override
+//	public void setValue(Object newValue) throws ReadOnlyException, Converter.ConversionException {
+//		setString((String) newValue);
+//	}
 }

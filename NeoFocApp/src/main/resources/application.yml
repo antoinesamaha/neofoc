@@ -1,0 +1,34 @@
+server:
+  port: 8099
+spring:
+  datasource:
+    url: ${DATASOURCE_URL:jdbc:postgresql://localhost:5432/neofocapp}
+    username: ${DATASOURCE_USERNAME:postgres}
+    password: ${DATASOURCE_PASSWORD:123456}
+    
+    hikari:
+      maximumPoolSize: ${DATASOURCE_MAX_POOL_SIZE:10}
+  mvc:
+    async:
+      request-timeout: -1
+  jpa:
+    properties:      
+      hibernate:
+        default_schema: public
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        #physical_naming_strategy: com.focframework.application.config.FocNamingStrategy
+        jdbc.batch_size: 30
+        order_inserts: true
+      org:
+        hibernate:
+    show-sql: true
+app:
+  name: SiVis
+security:
+  basic:
+    enabled: false   
+management:
+  security:
+    enabled: false  
+
+  

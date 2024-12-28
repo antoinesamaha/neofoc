@@ -10,13 +10,11 @@ import javax.swing.ImageIcon;
 
 import com.foc.business.multilanguage.LanguageKey;
 import com.foc.business.multilanguage.MultiLanguage;
-import com.vaadin.data.Item;
-import com.vaadin.data.Property;
 
 /**
  * @author 01Barmaja
  */
-public class FMultipleChoiceItem implements FMultipleChoiceItemInterface, Item {
+public class FMultipleChoiceItem implements FMultipleChoiceItemInterface {
   private int         id        = 0   ;
   private String      title     = null;
   private ImageIcon   imageIcon = null;
@@ -92,8 +90,8 @@ public class FMultipleChoiceItem implements FMultipleChoiceItemInterface, Item {
   
   private static ArrayList<String> vaadinPropertyIDArrayList = null;
   
-	@Override
-	public Property getItemProperty(Object id) {
+//	@Override
+//	public Property getItemProperty(Object id) {
 		/*
 		if(id.equals("id")){
 			return new PropertysetItem();
@@ -101,10 +99,10 @@ public class FMultipleChoiceItem implements FMultipleChoiceItemInterface, Item {
 			return title;
 		}
 		*/
-		return null;
-	}
+//		return null;
+//	}
 
-	@Override
+//	@Override
 	public Collection<?> getItemPropertyIds() {
 		if(vaadinPropertyIDArrayList == null){
 			vaadinPropertyIDArrayList = new ArrayList<String>();
@@ -116,15 +114,15 @@ public class FMultipleChoiceItem implements FMultipleChoiceItemInterface, Item {
 		return vaadinPropertyIDArrayList;
 	}
 
-	@Override
-	public boolean addItemProperty(Object id, Property property) throws UnsupportedOperationException {
-		throw new UnsupportedOperationException("FMultipleChoiceItem.addItemProperty(Object id, Property property)");
-	}
+//	@Override
+//	public boolean addItemProperty(Object id, Property property) throws UnsupportedOperationException {
+//		throw new UnsupportedOperationException("FMultipleChoiceItem.addItemProperty(Object id, Property property)");
+//	}
 
-	@Override
-	public boolean removeItemProperty(Object id) throws UnsupportedOperationException {
-		throw new UnsupportedOperationException("FMultipleChoiceItem.addItemProperty(Object id)");
-	}
+//	@Override
+//	public boolean removeItemProperty(Object id) throws UnsupportedOperationException {
+//		throw new UnsupportedOperationException("FMultipleChoiceItem.addItemProperty(Object id)");
+//	}
   //-----------------------------------------------------------------------
   //-----------------------------------------------------------------------
 

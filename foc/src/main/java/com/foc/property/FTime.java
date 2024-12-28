@@ -30,7 +30,6 @@ import java.util.Calendar;
 import com.foc.Globals;
 import com.foc.db.DBManager;
 import com.foc.desc.FocObject;
-import com.vaadin.data.util.converter.Converter;
 
 /**
  * @author 01Barmaja
@@ -333,8 +332,8 @@ public class FTime extends FProperty {
     return isEmpty() ? null : getTime();
   }
 
-  @Override
-  public void setValue(Object newValue) throws ReadOnlyException, Converter.ConversionException {
+//  @Override
+  public void setValue(Object newValue) {
 		if(newValue == null){
 			setTime(new java.sql.Time(0));
 		}else{

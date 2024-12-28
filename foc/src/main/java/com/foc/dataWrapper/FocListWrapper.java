@@ -24,11 +24,9 @@ import com.foc.business.workflow.implementation.WorkflowDesc;
 import com.foc.desc.FocObject;
 import com.foc.desc.field.FField;
 import com.foc.list.FocList;
-import com.vaadin.data.Container;
-import com.vaadin.data.Item;
 
 @SuppressWarnings("serial")
-public class FocListWrapper extends FocDataWrapper implements Container.Indexed {
+public class FocListWrapper extends FocDataWrapper {
   
   //When the Wrapper is used for a ComboBox (FVObjectComboBox) 
   //it should always show the already selected value from previous sessions
@@ -87,7 +85,7 @@ public class FocListWrapper extends FocDataWrapper implements Container.Indexed 
   //Container.Indexed
   //-----------------
   
-	@Override
+//	@Override
 	public Object nextItemId(Object itemId) {
 		ArrayList<FocObject> array = getVisibleListElements(true);
 		int idx = indexOfId(itemId);
@@ -95,7 +93,7 @@ public class FocListWrapper extends FocDataWrapper implements Container.Indexed 
 		return (idx+1 < array.size()) ? array.get(idx+1).getReferenceInt() : null;
 	}
 
-	@Override
+//	@Override
 	public Object prevItemId(Object itemId) {
 		ArrayList<FocObject> array = getVisibleListElements(true);
 		int idx = indexOfId(itemId);
@@ -103,7 +101,7 @@ public class FocListWrapper extends FocDataWrapper implements Container.Indexed 
 		return (idx-1 > 0) ? array.get(idx-1).getReferenceInt() : null;
 	}
 
-	@Override
+//	@Override
 	public Object firstItemId() {
 		Long first = null;
 		ArrayList<FocObject> array = getVisibleListElements(true);
@@ -113,7 +111,7 @@ public class FocListWrapper extends FocDataWrapper implements Container.Indexed 
 		return first;
 	}
 
-	@Override
+//	@Override
 	public Object lastItemId() {
 		Long last = null;
 		ArrayList<FocObject> array = getVisibleListElements(true);
@@ -123,7 +121,7 @@ public class FocListWrapper extends FocDataWrapper implements Container.Indexed 
 		return last;
 	}
 
-	@Override
+//	@Override
 	public boolean isFirstId(Object itemId) {
 		boolean first = false;
 		ArrayList<FocObject> array = getVisibleListElements(true);
@@ -133,7 +131,7 @@ public class FocListWrapper extends FocDataWrapper implements Container.Indexed 
 		return first;
 	}
 
-	@Override
+//	@Override
 	public boolean isLastId(Object itemId) {
 		boolean last = false;
 		ArrayList<FocObject> array = getVisibleListElements(true);
@@ -143,17 +141,17 @@ public class FocListWrapper extends FocDataWrapper implements Container.Indexed 
 		return last;
 	}
 
-	@Override
+//	@Override
 	public Object addItemAfter(Object previousItemId) throws UnsupportedOperationException {
 		throw new UnsupportedOperationException();
 	}
 
-	@Override
-	public Item addItemAfter(Object previousItemId, Object newItemId) throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
-	}
+//	@Override
+//	public Item addItemAfter(Object previousItemId, Object newItemId) throws UnsupportedOperationException {
+//		throw new UnsupportedOperationException();
+//	}
 
-	@Override
+//	@Override
 	public int indexOfId(Object itemId) {
 		int index = -1;
 		
@@ -169,14 +167,14 @@ public class FocListWrapper extends FocDataWrapper implements Container.Indexed 
 		return index;
 	}
 
-	@Override
+//	@Override
 	public Object getIdByIndex(int index) {
 		ArrayList<FocObject> array = getVisibleListElements(true);
 	  FocObject focObj = array.get(index);
 	  return focObj != null ? focObj.getReferenceInt() : null;
 	}
 
-	@Override
+//	@Override
 	public List<?> getItemIds(int startIndex, int numberOfItems) {
 		ArrayList<Long> idsArray = new ArrayList<Long>();
 		
@@ -190,15 +188,15 @@ public class FocListWrapper extends FocDataWrapper implements Container.Indexed 
 		return idsArray;
 	}
 
-	@Override
+//	@Override
 	public Object addItemAt(int index) throws UnsupportedOperationException {
 		throw new UnsupportedOperationException();
 	}
 
-	@Override
-	public Item addItemAt(int index, Object newItemId) throws UnsupportedOperationException {
-		throw new UnsupportedOperationException();
-	}
+//	@Override
+//	public Item addItemAt(int index, Object newItemId) throws UnsupportedOperationException {
+//		throw new UnsupportedOperationException();
+//	}
 	
   /*
   private FocList newFocListFiltered = null;

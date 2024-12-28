@@ -42,11 +42,11 @@ import com.foc.list.filter.IFocListFilter;
 import com.foc.property.FProperty;
 import com.foc.shared.dataStore.IFocData;
 import com.foc.tree.objectTree.FObjectNode;
-import com.vaadin.data.Container.Hierarchical;
-import com.vaadin.data.Item;
-import com.vaadin.data.Property;
+//import com.vaadin.data.Container.Hierarchical;
+//import com.vaadin.data.Item;
+//import com.vaadin.data.Property;
 
-public abstract class FTree<N extends FNode, O extends Object> implements IFocData, Hierarchical {
+public abstract class FTree<N extends FNode, O extends Object> implements IFocData {
   public    abstract void      growTreeFromFocList(FocList focList);
   public    abstract int       getDepthVisibilityLimit();
   public    abstract FProperty getTreeSpecialProperty(N node);
@@ -1034,7 +1034,7 @@ public abstract class FTree<N extends FNode, O extends Object> implements IFocDa
 	// Vaadin Hierarchical
 	//------------------------------------------------------
 	
-  @Override
+//  @Override
   public Collection<?> getChildren(Object itemId) {
     //FocObject focObj = (FocObject) getItem(itemId);
     FNode node = vaadin_FindNode(itemId);
@@ -1050,7 +1050,7 @@ public abstract class FTree<N extends FNode, O extends Object> implements IFocDa
     return array;
   }
 
-  @Override
+//  @Override
   public Object getParent(Object itemId) {
 //    FocObject focObj = (FocObject) getItem(itemId);
 //    return (focObj != null && focObj.getFatherObject() != null) ? focObj.getFatherObject().getReference().getInteger() : null;
@@ -1081,7 +1081,7 @@ public abstract class FTree<N extends FNode, O extends Object> implements IFocDa
   }
   */
   
-  @Override
+//  @Override
   public Collection<Long> rootItemIds() {
   	ArrayList<Long> array = new ArrayList<Long>();
 
@@ -1110,7 +1110,7 @@ public abstract class FTree<N extends FNode, O extends Object> implements IFocDa
   }
 
 
-  @Override
+//  @Override
   public boolean setParent(Object itemId, Object newParentId) throws UnsupportedOperationException {
     throw new UnsupportedOperationException();
   }
@@ -1123,7 +1123,7 @@ public abstract class FTree<N extends FNode, O extends Object> implements IFocDa
     return nbrChildren > 0 && node.getNodeDepth() < getDepthVisibilityLimit();
   }*/
   
-  @Override
+//  @Override
   public boolean areChildrenAllowed(Object itemId) {
     FNode node = vaadin_FindNode(itemId);
     int nbrChildren = node != null ? node.getVisibleChildCount() : 0;
@@ -1144,7 +1144,7 @@ public abstract class FTree<N extends FNode, O extends Object> implements IFocDa
   	return val;
   }
   
-  @Override
+//  @Override
   public boolean setChildrenAllowed(Object itemId, boolean areChildrenAllowed) throws UnsupportedOperationException {
   	boolean value = true;
   	if(itemId != null){
@@ -1172,7 +1172,7 @@ public abstract class FTree<N extends FNode, O extends Object> implements IFocDa
     return node;
   }
   
-  @Override
+//  @Override
   public boolean isRoot(Object itemId) {
     //FocObject focObj = (FocObject) getItem(itemId);
     FNode node = vaadin_FindNode(itemId);
@@ -1180,7 +1180,7 @@ public abstract class FTree<N extends FNode, O extends Object> implements IFocDa
     return isRoot;
   }
 
-  @Override
+//  @Override
   public boolean hasChildren(Object itemId) {
     //FocObject focObj = (FocObject) getItem(itemId);
     FNode node = vaadin_FindNode(itemId);
@@ -1188,17 +1188,17 @@ public abstract class FTree<N extends FNode, O extends Object> implements IFocDa
     return nbrChildren > 0 && node.getNodeDepth() < getDepthVisibilityLimit();
   }
 
-  @Override
-  public boolean removeItem(Object itemId) throws UnsupportedOperationException {
-    return getFocList() != null ? getFocList().removeItem(itemId) : null;
-  }
+//  @Override
+//  public boolean removeItem(Object itemId) throws UnsupportedOperationException {
+//    return getFocList() != null ? getFocList().removeItem(itemId) : null;
+//  }
+//
+//  @Override
+//  public Item getItem(Object itemId) {
+//    return getFocList() != null ? getFocList().getItem(itemId) : null;
+//  }
 
-  @Override
-  public Item getItem(Object itemId) {
-    return getFocList() != null ? getFocList().getItem(itemId) : null;
-  }
-
-  @Override
+//  @Override
   public Collection<?> getContainerPropertyIds() {
     return getFocList() != null ? getFocList().getContainerPropertyIds() : null;
   }
@@ -1213,7 +1213,7 @@ public abstract class FTree<N extends FNode, O extends Object> implements IFocDa
   }
   */
   
-  @Override
+//  @Override
   public Collection<?> getItemIds() {
   	final ArrayList<Long> arrayRefs = new ArrayList<Long>(); 
   	
@@ -1253,47 +1253,47 @@ public abstract class FTree<N extends FNode, O extends Object> implements IFocDa
     //return getFocList() != null ? getFocList().getItemIds() : null;
   }
 
-  @Override
-  public Property getContainerProperty(Object itemId, Object propertyId) {
-    return getFocList() != null ? getFocList().getContainerProperty(itemId, propertyId) : null;
-  }
+//  @Override
+//  public Property getContainerProperty(Object itemId, Object propertyId) {
+//    return getFocList() != null ? getFocList().getContainerProperty(itemId, propertyId) : null;
+//  }
+//
+//  @Override
+//  public Class<?> getType(Object propertyId) {
+//    return getFocList() != null ? getFocList().getType(propertyId) : null;
+//  }
 
-  @Override
-  public Class<?> getType(Object propertyId) {
-    return getFocList() != null ? getFocList().getType(propertyId) : null;
-  }
-
-  @Override
+//  @Override
   public int size() {
     return getFocList() != null ? getFocList().size() : null;
   }
 
-  @Override
+//  @Override
   public boolean containsId(Object itemId) {
     return getFocList() != null ? getFocList().containsId(itemId) : null;
   }
 
-  @Override
-  public Item addItem(Object itemId) throws UnsupportedOperationException {
-    return getFocList() != null ? getFocList().addItem(itemId) : null;
-  }
+//  @Override
+//  public Item addItem(Object itemId) throws UnsupportedOperationException {
+//    return getFocList() != null ? getFocList().addItem(itemId) : null;
+//  }
 
-  @Override
-  public Object addItem() throws UnsupportedOperationException {
-    return getFocList() != null ? getFocList().addItem() : null;
-  }
+//  @Override
+//  public Object addItem() throws UnsupportedOperationException {
+//    return getFocList() != null ? getFocList().addItem() : null;
+//  }
 
-  @Override
+//  @Override
   public boolean addContainerProperty(Object propertyId, Class<?> type, Object defaultValue) throws UnsupportedOperationException {
     return getFocList() != null ? getFocList().addContainerProperty(propertyId, type, defaultValue) : null;
   }
 
-  @Override
+//  @Override
   public boolean removeContainerProperty(Object propertyId) throws UnsupportedOperationException {
     return getFocList() != null ? getFocList().removeContainerProperty(propertyId) : null;
   }
 
-  @Override
+//  @Override
   public boolean removeAllItems() throws UnsupportedOperationException {
     return getFocList() != null ? getFocList().removeAllItems() : null;
   }

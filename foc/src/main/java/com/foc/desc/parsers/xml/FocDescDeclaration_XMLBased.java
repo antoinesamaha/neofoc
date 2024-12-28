@@ -27,7 +27,6 @@ import com.foc.desc.FocDesc;
 import com.foc.desc.FocModule;
 import com.foc.desc.parsers.FocDescDeclaration_ParsedBased;
 import com.foc.util.Utils;
-import com.vaadin.server.ClassResource;
 
 public class FocDescDeclaration_XMLBased extends FocDescDeclaration_ParsedBased {
 
@@ -96,17 +95,14 @@ public class FocDescDeclaration_XMLBased extends FocDescDeclaration_ParsedBased 
 	private XMLFocDesc parse(){
 		XMLFocDesc xmlFocDesc = null;
 		try{
-      ClassResource resource = null;
-      InputStream inputStream = null;
-      resource = new ClassResource(xmlFileName);
-      inputStream = resource.getStream().getStream();
+//ssssssssssss
 
       SAXParserFactory factory = SAXParserFactory.newInstance();
       SAXParser saxParser = factory.newSAXParser();
       
       XMLFocDescParser focDescParser = new XMLFocDescParser(this);
       
-      saxParser.parse(inputStream, focDescParser);
+//      saxParser.parse(inputStream, focDescParser);
       xmlFocDesc = focDescParser.getXmlFocDesc();
     } catch (Exception e) {
       Globals.logString("Could not load file : " + xmlFileName);

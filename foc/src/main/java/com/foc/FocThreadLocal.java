@@ -18,7 +18,6 @@ package com.foc;
 import java.io.Serializable;
 
 import com.foc.business.workflow.implementation.LoggableChangeCumulator;
-import com.vaadin.ui.UI;
 
 @SuppressWarnings("serial")
 public class FocThreadLocal implements Serializable{
@@ -31,11 +30,6 @@ public class FocThreadLocal implements Serializable{
 			Globals.logString("THREAD SET SERVER ThreadID="+Thread.currentThread().getId()+" TO NULL");
 		}
 		
-		UI currentUI = UI.getCurrent();
-		if(currentUI != null){
-			currentUI.setData(webServer);
-		}
-		
 		threadWebServer.set(webServer);
 		if(webServer != null){
 			Globals.logString("THREAD SET SERVER ThreadID="+Thread.currentThread().getId()+" ");
@@ -44,11 +38,6 @@ public class FocThreadLocal implements Serializable{
 
 	public static Object getWebServer(){
 		Object obj = null;
-		
-		UI currentUI = UI.getCurrent();
-		if(currentUI != null){
-			obj = currentUI.getData();
-		}
 		
 		if(obj == null){
 			obj = threadWebServer.get();
@@ -67,18 +56,7 @@ public class FocThreadLocal implements Serializable{
 	}
 	
 	public static void setWebApplication(Object webApplication){
-		UI.setCurrent((UI) webApplication);
 		threadWebApplication.set(webApplication);
-	}
-
-	public static Object getWebApplication(){
-		Object obj = UI.getCurrent(); 
-		if(obj == null){
-			Globals.logString("DEBUG_SESSION_NOT_VALID THIS IS NULL FocThreadLocal->UI.getCurrent()");
-			obj = threadWebApplication.get();
-			if(obj == null) Globals.logString("DEBUG_SESSION_NOT_VALID THIS IS NULL TOOO FocThreadLocal->threadWebApplication.get()");
-		}
-		return obj;
 	}
 
 	public static Object getLoggableChangeCumulator(){

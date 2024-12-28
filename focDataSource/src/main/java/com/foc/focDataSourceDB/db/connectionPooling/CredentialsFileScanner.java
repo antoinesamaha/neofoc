@@ -24,7 +24,6 @@ import com.foc.ConfigInfo;
 import com.foc.Globals;
 import com.foc.focDataSourceDB.db.DBManagerServer;
 import com.foc.loader.FocFileLoader;
-import com.vaadin.server.ClassResource;
 
 public class CredentialsFileScanner {
 

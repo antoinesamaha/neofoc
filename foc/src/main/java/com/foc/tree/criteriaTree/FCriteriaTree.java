@@ -36,7 +36,7 @@ import com.foc.tree.FINode;
 import com.foc.tree.FNode;
 import com.foc.tree.FTree;
 import com.foc.tree.TreeScanner;
-import com.vaadin.data.Item;
+//import com.vaadin.data.Item;
 
 public class FCriteriaTree<N extends FCriteriaNode, O extends FocObject> extends FTree<FCriteriaNode, FocObject> {
 	private FTreeDesc treeDesc    = null;
@@ -447,19 +447,19 @@ public class FCriteriaTree<N extends FCriteriaNode, O extends FocObject> extends
     return node;
   }
   
-  @Override
+//  @Override
   public boolean removeItem(Object itemId) throws UnsupportedOperationException {
 //  	throw new UnsupportedOperationException("FCriteriaTree.removeItem");
   	return true;
   }
 
-  @Override
-  public Item addItem(Object itemId) throws UnsupportedOperationException {
-//  	throw new UnsupportedOperationException("FCriteriaTree.addItem(Object itemID)");
-  	return null;
-  }
+//  @Override
+//  public Item addItem(Object itemId) throws UnsupportedOperationException {
+////  	throw new UnsupportedOperationException("FCriteriaTree.addItem(Object itemID)");
+//  	return null;
+//  }
 
-  @Override
+//  @Override
   public Object addItem() throws UnsupportedOperationException {
 //  	throw new UnsupportedOperationException("FCriteriaTree.addItem()");
   	return null;

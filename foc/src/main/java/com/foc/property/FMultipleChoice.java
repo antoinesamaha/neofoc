@@ -11,7 +11,6 @@ import java.util.Iterator;
 import com.foc.desc.FocObject;
 import com.foc.desc.field.FMultipleChoiceField;
 import com.foc.desc.field.FMultipleChoiceItem;
-import com.vaadin.data.util.converter.Converter;
 
 /**
  * @author 01Barmaja
@@ -165,7 +164,7 @@ public class FMultipleChoice extends FInt implements IFMultipleChoiceProperty {
   }
 
   @Override
-  public void setValue(Object newValue) throws ReadOnlyException, Converter.ConversionException {
+  public void setValue(Object newValue) {
   	FMultipleChoiceItem multiItem = (FMultipleChoiceItem) newValue;
   	if(multiItem != null){
   		setInteger((Integer) multiItem.getId());

@@ -28,8 +28,7 @@ import com.foc.list.FocList;
 import com.foc.shared.dataStore.IFocData;
 import com.foc.shared.xmlView.IXMLViewConst;
 import com.foc.util.Utils;
-import com.vaadin.server.ClassResource;
-import com.vaadin.server.Page;
+
 /**
  * @author 01Barmaja
  */
@@ -136,11 +135,11 @@ public class Globals{
         }
       }
       if(in == null){
-      	Globals.logString("  3-Trying Classs resource");
-  	    ClassResource resource = new ClassResource(path);
-  	    if(resource.getStream() == null) Globals.logString("    The resource.getStream() = null");
-  	    in = resource.getStream().getStream();
-  	    if(in == null) Globals.logString("    The in = null when using Resource.getStream()");
+      	Globals.logString("  3-Cannot Try Classs resource");
+//  	    ClassResource resource = new ClassResource(path);
+//  	    if(resource.getStream() == null) Globals.logString("    The resource.getStream() = null");
+//  	    in = resource.getStream().getStream();
+//  	    if(in == null) Globals.logString("    The in = null when using Resource.getStream()");
       }
 //      if(in == null){
 //      	in = file.getClass().getClassLoader().getResourceAsStream(path);
@@ -530,7 +529,8 @@ public class Globals{
   }
   
   public static boolean isTouchDevice(){
-  	return Page.getCurrent().getWebBrowser().isTouchDevice();
+//  	return Page.getCurrent().getWebBrowser().isTouchDevice();
+	  return false;
   }
   
 	private static class MemoryLogRunnable implements Runnable{
