@@ -471,7 +471,7 @@ public class FocController {
                         // responseBody = "{ \"" + getNameInPlural() + "\":" + userJson + "}";
                         // add total if start or count is present in the request. If not paginated, no
                         // need to do a count query
-                        responseBody = "{ \"" + focDesc.getName() + "\":" + userJson + ", \"totalCount\":" + totalCount
+                        responseBody = "{ \"data\":" + userJson + ", \"totalCount\":" + totalCount
                                 + "}";
 //							responseBody = "{ \"list\":" + userJson + ", \"totalCount\":"+totalCount+"}";
                     }
