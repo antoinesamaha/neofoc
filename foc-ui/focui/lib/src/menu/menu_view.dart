@@ -7,7 +7,7 @@ import 'menu.dart';
 class MenuView extends StatelessWidget {
   const MenuView({
     super.key,
-    this.items = const [Menu("Countries", "/countries"), Menu("Tables", "table")],
+    this.items = const [Menu("Countries", "/countries"), Menu("Entities", "/entities")],
   });
 
   static const routeName = '/';

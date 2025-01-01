@@ -1,10 +1,11 @@
 import 'dart:convert';
+import 'package:focui/src/app_constants.dart';
 import 'package:http/http.dart' as http;
 
 import 'foc_entity.dart';
 
 class FocService {
-  static const String url = 'http://localhost:8099/foc/obj/country';
+  static const String url = '${AppConstants.apiUrl}/foc/obj/country';
 
   Future<List<FocEntity>> fetchItems() async {
     final response = await http.get(Uri.parse(url));

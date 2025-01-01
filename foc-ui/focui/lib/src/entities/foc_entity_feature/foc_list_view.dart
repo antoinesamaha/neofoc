@@ -1,19 +1,22 @@
 // lib/src/sample_feature/sample_item_list_view.dart
 import 'package:flutter/material.dart';
 import '../../settings/settings_view.dart';
+import '../meta_feature/meta_entity.dart';
 import 'foc_entity.dart';
 import 'foc_service.dart';
 
-class CountryListView extends StatefulWidget {
-  const CountryListView({super.key});
+class FocListView extends StatefulWidget {
+  final MetaEntity metaEntity;
+
+  const FocListView({super.key, required this.metaEntity});
 
   static const routeName = '/countries';
 
   @override
-  _CountryListViewState createState() => _CountryListViewState();
+  _FocListViewState createState() => _FocListViewState();
 }
 
-class _CountryListViewState extends State<CountryListView> {
+class _FocListViewState extends State<FocListView> {
   late Future<List<FocEntity>> futureItems;
 
   @override
@@ -26,7 +29,7 @@ class _CountryListViewState extends State<CountryListView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Countries'),
+        title: Text(widget.metaEntity.name),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -47,15 +50,14 @@ class _CountryListViewState extends State<CountryListView> {
             return const Center(child: Text('No items found'));
           } else {
             return DataTable(
-              columns: const [
-                DataColumn(label: Text('ID')),
-                DataColumn(label: Text('Name')),
-              ],
+              columns: widget.metaEntity.fields.map((field) {
+                return DataColumn(label: Text(field.name));
+              }).toList(),
               rows: snapshot.data!.map((item) {
-                return DataRow(cells: [
-                  DataCell(Text(item['REF'].toString())),
-                  DataCell(Text(item['COUNTRY'])),
-                ]);
+                return DataRow(
+                    cells: widget.metaEntity.fields.map((field) {
+                  return DataCell(Text(item[field.dbName].toString()));
+                }).toList());
               }).toList(),
             );
           }

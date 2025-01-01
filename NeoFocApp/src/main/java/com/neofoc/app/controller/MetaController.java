@@ -30,7 +30,7 @@ import java.util.Iterator;
 public class MetaController {
 
     @GetMapping("entities")
-    public ResponseEntity<String> entities(HttpServletRequest request, @RequestParam(value = "module", required = false) String module) {
+    public ResponseEntity<String> entities(HttpServletRequest request, @RequestParam(value = "module", required = false) String module, @RequestParam(value = "entity", required = false) String entity) {
         FocDescMap focDescMap = Globals.getApp().getFocDescMap();
         JSONObject jsonObject = new JSONObject();
         JSONArray jsonDataArray = new JSONArray();
@@ -40,6 +40,9 @@ public class MetaController {
             if (module != null && focDesc.getModule() != null && !focDesc.getModule().getName().equals(module)) {
                 continue;
             }
+            if (entity != null && focDesc.getName() != null && !focDesc.getName().equals(entity)) {
+                continue;
+            }
             JSONObject focDescJson = new JSONObject();
             focDescJson.put("name", focDesc.getName());
             focDescJson.put("storageName", focDesc.getStorageName());
@@ -47,6 +50,18 @@ public class MetaController {
             if (focDesc.getModule() != null) {
                 focDescJson.put("module", focDesc.getModule().getName());
             }
+
+            JSONArray jsonFieldArray = new JSONArray();
+            for (int i=0; i<focDesc.getFieldsSize(); i++) {
+                FField field = focDesc.getFieldAt(i);
+                JSONObject fieldJson = new JSONObject();
+                fieldJson.put("name", field.getName());
+                fieldJson.put("dbName", field.getDBName());
+                fieldJson.put("sqlType", field.getSqlType());
+                fieldJson.put("type", field.getFabType());
+                jsonFieldArray.put(fieldJson);
+            }
+            focDescJson.put("fields", jsonFieldArray);
 
             jsonDataArray.put(focDescJson);
         }
