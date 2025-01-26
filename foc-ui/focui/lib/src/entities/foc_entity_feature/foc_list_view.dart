@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../settings/settings_view.dart';
 import '../meta_feature/meta_entity.dart';
+import 'foc_details_view.dart';
 import 'foc_entity.dart';
 import 'foc_service.dart';
 
@@ -10,7 +11,7 @@ class FocListView extends StatefulWidget {
 
   const FocListView({super.key, required this.metaEntity});
 
-  static const routeName = '/countries';
+  static const routeName = '/entity';
 
   @override
   _FocListViewState createState() => _FocListViewState();
@@ -22,7 +23,27 @@ class _FocListViewState extends State<FocListView> {
   @override
   void initState() {
     super.initState();
-    futureItems = FocService().fetchItems();
+    futureItems = FocService().fetchItems(widget.metaEntity);
+  }
+
+  void _editItem(FocEntity item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FocDetailsView(metaEntity: widget.metaEntity, itemId: item.id.toString()),
+      ),
+    ).then((updatedItem) {
+      if (updatedItem != null) {
+        setState(() {
+          futureItems = FocService().fetchItems(widget.metaEntity);
+        });
+      }
+    });
+  }
+
+  void _deleteItem(FocEntity item) {
+    // Implement delete functionality here
+    print('Delete item: ${item}');
   }
 
   @override
@@ -49,16 +70,36 @@ class _FocListViewState extends State<FocListView> {
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text('No items found'));
           } else {
-            return DataTable(
-              columns: widget.metaEntity.fields.map((field) {
-                return DataColumn(label: Text(field.name));
-              }).toList(),
-              rows: snapshot.data!.map((item) {
-                return DataRow(
-                    cells: widget.metaEntity.fields.map((field) {
-                  return DataCell(Text(item[field.dbName].toString()));
-                }).toList());
-              }).toList(),
+            return SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: [
+                    ...widget.metaEntity.fields.map((field) {
+                      return DataColumn(label: Text(field.name));
+                    }).toList(),
+                    const DataColumn(label: Text('Actions')),
+                  ],
+                  rows: snapshot.data!.map((item) {
+                    return DataRow(cells: [
+                      ...widget.metaEntity.fields.map((field) {
+                        return DataCell(Text(item[field.dbName].toString()));
+                      }).toList(),
+                      DataCell(Row(children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _editItem(item),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () => _deleteItem(item),
+                        ),
+                      ])),
+                    ]);
+                  }).toList(),
+                ),
+              ),
             );
           }
         },

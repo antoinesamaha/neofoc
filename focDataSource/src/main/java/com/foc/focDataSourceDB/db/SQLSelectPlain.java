@@ -287,7 +287,7 @@ public class SQLSelectPlain extends SQLRequest {
             }
             if(tempObject.getReference() != null){
               //addedObject = focList.searchByReference(tempObject.getReference().getInteger());
-              addedObject = focList.searchByRealReferenceOnly(tempObject.getReference().getInteger());
+              addedObject = focList.searchByRealReferenceOnly(tempObject.getReference().getLong());
             }
           }
           if (addedObject == null) {

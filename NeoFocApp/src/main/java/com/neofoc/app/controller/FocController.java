@@ -14,12 +14,7 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.PathMatcher;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.HandlerMapping;
 
 import com.foc.Globals;
@@ -393,21 +388,40 @@ public class FocController {
         return builder.toString();
     }
 
+    private PathDetails getPathDetails(HttpServletRequest request) {
+        PathDetails requestParams = new PathDetails();
+
+        String path = getWildcardParam(request);
+        String[] params = path.split("/");
+
+        if (params != null) {
+            if (params.length > 0) {
+                requestParams.setResourceName(params[0]);
+                requestParams.setFocDesc(Globals.getApp().getFocDescMap().get(params[0]));
+            }
+            if (params.length > 1) {
+                requestParams.setId(Utils.parseLong(params[1], 0));
+            }
+            if (params.length > 2) {
+                requestParams.setAction(params[2]);
+            }
+        }
+        return requestParams;
+    }
+
     private FocDesc getFocDescFromPath(HttpServletRequest request) {
         String path = getWildcardParam(request);
-
-        String result = "";
-
         String[] params = path.split("/");
         String focDescName = params[0];
-        FocDesc focDesc = Globals.getApp().getFocDescMap().get(focDescName);
-        return focDesc;
+        return Globals.getApp().getFocDescMap().get(focDescName);
     }
 
     @GetMapping("obj/**")
     public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String result = "";
-        FocDesc focDesc = getFocDescFromPath(request);
+
+        PathDetails reqParams = getPathDetails(request);
+        FocDesc focDesc = reqParams.getFocDesc();
 
         try {
             if (request != null && request.getSession() != null) {
@@ -430,7 +444,11 @@ public class FocController {
 
                     FocList list = newFocList(focRequest, true);
 
-                    long filterRef = doGet_GetReference(request, list);
+                    long filterRef = reqParams.getId();
+
+                    if (filterRef == 0) {
+                        filterRef = doGet_GetReference(request, list);
+                    }
                     if (filterRef > 0) {
                         FocObject focObject = null;
                         if (!useCachedList(null)) {
@@ -543,11 +561,25 @@ public class FocController {
         return null;
     }
 
+    @PutMapping("obj/**")
+    protected void doPut(HttpServletRequest request, HttpServletResponse response, @RequestBody String body)
+            throws ServletException, IOException {
+        doPostPut_Internal(request, response, body);
+    }
+
     @PostMapping("obj/**")
     protected void doPost(HttpServletRequest request, HttpServletResponse response, @RequestBody String body)
             throws ServletException, IOException {
+        doPostPut_Internal(request, response, body);
+    }
+
+    protected void doPostPut_Internal(HttpServletRequest request, HttpServletResponse response, @RequestBody String body)
+            throws ServletException, IOException {
         String result = "";
-        FocDesc focDesc = getFocDescFromPath(request);
+
+        PathDetails details = getPathDetails(request);
+
+        FocDesc focDesc = details.getFocDesc();
         int returnedStatus = HttpServletResponse.SC_NOT_IMPLEMENTED;
 
         FocRestAPICall focRequest = newFocRestAPICall(request, focDesc);
@@ -576,7 +608,10 @@ public class FocController {
                         list = newFocList(focRequest, false);
                         if (list != null) {
                             list.loadIfNotLoadedFromDB();
-                            long ref = doPost_GetReference(jsonObj, list);
+                            long ref = details.getId();
+                            if (ref == 0) {
+                                ref = doPost_GetReference(jsonObj, list);
+                            }
                             if (ref > 0) {
                                 focObj = (FocObject) list.searchByRealReferenceOnly(ref);
                             } else {
@@ -793,4 +828,42 @@ public class FocController {
         public void copyJsonToObject(FocObject slaveObj, JSONObject slaveJson);
     }
 
+    private class PathDetails {
+        private String resourceName;
+        private FocDesc focDesc;
+        private long id;
+        private String action;
+
+        public FocDesc getFocDesc() {
+            return focDesc;
+        }
+
+        public void setFocDesc(FocDesc focDesc) {
+            this.focDesc = focDesc;
+        }
+
+        public String getResourceName() {
+            return resourceName;
+        }
+
+        public void setResourceName(String resourceName) {
+            this.resourceName = resourceName;
+        }
+
+        public long getId() {
+            return id;
+        }
+
+        public void setId(long id) {
+            this.id = id;
+        }
+
+        public String getAction() {
+            return action;
+        }
+
+        public void setAction(String action) {
+            this.action = action;
+        }
+    }
 }
