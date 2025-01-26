@@ -23,16 +23,6 @@
             <version>${neofoc.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.neofoc</groupId>
-            <artifactId>focAPI</artifactId>
-            <version>${neofoc.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.neofoc</groupId>
-            <artifactId>focShared</artifactId>
-            <version>${neofoc.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi</artifactId>
             <version>3.9</version>

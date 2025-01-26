@@ -20,17 +20,7 @@
     <dependencies>
         <dependency>
             <groupId>com.neofoc</groupId>
-            <artifactId>focAPI</artifactId>
-            <version>${neofoc.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.neofoc</groupId>
             <artifactId>foc</artifactId>
-            <version>${neofoc.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.neofoc</groupId>
-            <artifactId>focShared</artifactId>
             <version>${neofoc.version}</version>
         </dependency>
         <dependency>

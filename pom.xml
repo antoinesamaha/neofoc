@@ -68,8 +68,6 @@
     </build>
 
     <modules>
-        <module>focAPI</module>
-        <module>focShared</module>
         <module>foc</module>
         <module>focOfficeLink</module>
         <module>focDataSource</module>
