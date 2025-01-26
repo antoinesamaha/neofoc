@@ -91,6 +91,7 @@ com/foc/db/migration/MigDataBaseGuiBrowsePanel.class
 com/foc/business/workflow/map/WFTransactionConfigDesc.class
 com/fab/model/table/FieldDefinitionDesc$3.class
 com/foc/FocUnitTestFailureException.class
+com/foc/shared/prnLayout/IPrnLayoutConst.class
 com/foc/business/workflow/implementation/ILoggableDesc.class
 com/foc/link/FocLinkOutBoxDetail.class
 com/foc/gui/FGTimeField.class
@@ -170,6 +171,7 @@ com/foc/business/notifier/FocNotificationEventArray.class
 com/foc/formula/ICellTitleBuilder.class
 com/foc/GuiConfigInfo$1.class
 com/foc/list/filter/DateCondition$1.class
+com/foc/api/IFocDesc.class
 com/foc/gui/FPopupMenu.class
 com/foc/admin/FocUser$1$1.class
 com/foc/formula/fucntion/old/FunctionSum.class
@@ -219,8 +221,10 @@ com/foc/join/FocRequestDesc.class
 com/foc/tree/criteriaTree/FCriteriaNode$LeafFinderScaner.class
 com/foc/loader/FocFileLoader.class
 com/foc/desc/field/FSDOGeometryPointField.class
+com/foc/shared/json/B01JsonSaxCallBack_Abstract.class
 com/foc/desc/FocDesc$1.class
 com/foc/gui/FTreeTablePanel$15.class
+com/foc/shared/dataStore/DataKey.class
 com/foc/formula/function/FunctionSubstract.class
 com/foc/gui/MonoFrame$2.class
 com/foc/annotations/model/predefinedFields/FocCODE.class
@@ -231,6 +235,7 @@ com/fab/model/table/UserDefinedObjectGuiDetailsPanel$1.class
 com/foc/FocMenuSettings.class
 com/foc/business/calendar/FCalendarGuiDetailsPanel.class
 com/foc/business/adrBook/ContactDesc$1.class
+com/foc/shared/json/JSONFieldFilter.class
 com/foc/formula/fucntion/old/FunctionGraterThen.class
 com/foc/business/printing/PrnContext.class
 com/foc/gui/table/FixedColumnScrollPane.class
@@ -295,6 +300,7 @@ com/foc/access/FocLogLineConst.class
 com/foc/desc/FocRef.class
 com/foc/print/FPRowListContainer.class
 com/foc/jasper/FocJRValidationPanel$1.class
+com/foc/shared/dataStore/IDataStoreConst.class
 com/foc/access/FocLogLineNode.class
 com/fab/model/table/FieldDefinitionGuiBrowsePanel$1.class
 com/foc/print/FPRow.class
@@ -313,6 +319,7 @@ com/foc/gui/table/view/ColumnsConfigGuiBrowsePanel$3.class
 com/foc/http/FocHTTPRequestSender.class
 com/foc/business/adrBook/EMailSender.class
 com/foc/desc/parsers/fields/FTypeReference.class
+com/foc/shared/dataStore/FDataRequestList.class
 com/foc/list/filter/FocListFilterValidationListener.class
 com/foc/desc/field/FTimeField.class
 com/foc/gui/FGButton.class
@@ -371,6 +378,7 @@ com/foc/annotations/model/predefinedFields/FocORDER.class
 com/foc/desc/field/FBlobStringField.class
 com/foc/print/CopyOfPrintPreviewPanel$PrintPreviewCanvas.class
 com/foc/gui/FGFormulaEditorPanel.class
+com/foc/shared/dataStore/IFocData.class
 com/foc/business/photoAlbum/PhotoAlbumManagmentModule.class
 com/fab/gui/details/GuiDetailsComponentGuiBrowsePanel.class
 com/foc/formula/IPropertyFormulaDesc.class
@@ -384,7 +392,6 @@ com/foc/list/filter/StringCondition.class
 com/foc/formula/FunctionFactory.class
 com/foc/gui/table/cellControler/renderer/gantChartActivityRenderer/GanttStyleGuiBrowsePanel.class
 com/foc/admin/DocRightsGroupDesc.class
-com/foc/dataWrapper/FocDataWrapper$3.class
 com/fab/gui/details/GuiDetailsGuiBrowsePanel.class
 com/foc/desc/dataModelTree/DataModelNodeGuiTreePanel$1.class
 com/foc/property/FCloudStoragePropertyResource.class
@@ -506,7 +513,6 @@ com/foc/business/photoAlbum/PhotoAlbumFilterDesc.class
 com/foc/business/notifier/DocMsg.class
 com/foc/desc/parsers/fields/FTypeBlobMedium.class
 com/foc/controller/FocRestAPICall.class
-com/foc/property/FProperty$ValueChangeEvent.class
 com/foc/property/FPropertyArray.class
 com/foc/annotations/model/fields/FocCloudImage.class
 com/foc/Application$2.class
@@ -604,6 +610,7 @@ com/foc/gui/progressBar/FGProgressDialog.class
 com/foc/IExitListener.class
 com/foc/business/units/UnitModule.class
 com/foc/db/SQLJoin.class
+com/foc/shared/Base64.class
 com/foc/desc/field/FInLineObjectField.class
 com/foc/gui/table/IFocCellPainter.class
 com/foc/gui/table/FTableView$1.class
@@ -635,6 +642,7 @@ com/foc/dataDictionary/FocDataDictionary$13.class
 com/foc/admin/GrpViewRightsDesc.class
 com/foc/serializer/FJSONSerializer.class
 com/foc/gui/table/cellControler/DateCellControler.class
+com/foc/shared/json/JSONObjectWriter.class
 com/foc/ConfigInfoObject.class
 com/foc/util/TestUtil.class
 com/fab/IFabExtender.class
@@ -648,6 +656,7 @@ com/foc/dataDictionary/FocDataDictionary$19.class
 com/foc/gui/FGComboBox.class
 com/foc/business/workflow/signing/WFTransactionWrapperGuiBrowsePanel$1.class
 com/foc/gui/table/view/ColumnsConfig.class
+com/foc/shared/IFocMobileModule.class
 com/foc/business/notifier/manipulators/FocNotificationUserFromContactManipulator.class
 com/fab/model/fieldFactory/FDBoolean.class
 com/foc/list/filter/TimeCondition.class
@@ -752,6 +761,7 @@ com/foc/formula/FFormulaTree$FFormulaTreeScaner.class
 com/fab/model/table/TableDefinitionGuiDetailsPanel_ForNewItem$1.class
 com/fab/model/filter/FilterDefinitionGuiBrowsePanel.class
 com/foc/dataSource/IFocDataUtil.class
+com/foc/api/IFocEncryptor.class
 com/foc/db/DBManager.class
 com/foc/gui/table/ITableOverPaint.class
 com/foc/desc/FocTypedObject.class
@@ -981,6 +991,9 @@ com/foc/annotations/model/fields/FocDate.class
 com/foc/gui/FGScrollPane.class
 com/foc/event/FocEvent.class
 com/foc/ConfigInfoObjectGuiBrowsePanel.class
+com/foc/api/IFocObject.class
+com/foc/shared/json/B01JsonBuilder.class
+com/foc/shared/IFocWebModuleShared.class
 com/foc/formula/IOutputFieldFormulaGetter.class
 com/foc/jasper/FocJRValidationPanel$5.class
 com/fab/model/project/FabProjectDesc.class
@@ -1237,6 +1250,7 @@ com/foc/business/multilanguage/Language.class
 com/foc/formula/FocAbstractFormulaContext.class
 com/foc/gui/table/cellControler/editor/FTreeCellEditor$2.class
 com/foc/gui/table/cellControler/CheckBoxCellControler.class
+com/foc/shared/dataStore/AbstractDataStore.class
 com/foc/fUnit/NotUsed.class
 com/foc/dataDictionary/FocDataDictionary$1.class
 com/foc/desc/popupMenu/TreeImportExportFile.class
@@ -1299,8 +1313,8 @@ com/foc/gui/table/cellControler/renderer/FDefaultCellRenderer.class
 com/foc/desc/field/FNumField.class
 com/foc/db/migration/MigFieldMapGuiDetailsPanel.class
 com/foc/business/status/StatusFieldPanel$2.class
+com/foc/shared/dataStore/FDataRequest_Abstract.class
 com/foc/gui/dateInterval/StartEndDate.class
-com/foc/dataWrapper/FocDataWrapper$2.class
 com/foc/desc/field/FMultipleChoiceItem.class
 com/foc/tree/objectTree/FObjectNode.class
 com/fab/model/fieldFactory/FDImage.class
@@ -1462,6 +1476,7 @@ com/foc/annotations/model/FocChoice.class
 com/foc/dataDictionary/FocDataDictionary$7.class
 com/foc/business/notifier/FocPageLink.class
 com/foc/desc/field/FObjectField121.class
+com/foc/shared/xmlView/IXMLViewConst.class
 com/foc/business/notifier/FocNotificationEmailTemplate.class
 com/foc/file/CopyOfFocLineReader.class
 com/foc/annotations/model/fields/FocLong.class
@@ -1474,6 +1489,7 @@ com/fab/FocApplicationBuilder.class
 com/foc/OptionDialog.class
 com/foc/admin/FocUserHistoryList.class
 com/foc/gui/table/cellControler/editor/FTableObjectCellEditor.class
+com/foc/shared/json/JSONObjectFilter.class
 com/foc/gui/dateChooser/FDateEditor$FDateEditorFormatter.class
 com/foc/gui/table/cellControler/renderer/gantChartActivityRenderer/FGanttChartActivityColumnHeaderRenderer.class
 com/foc/formula/PropertyFormulaContext.class
@@ -1555,6 +1571,7 @@ com/foc/dataWrapper/FocDataWrapper$ListFilterUsingPropertyValue.class
 com/foc/depricatedUnit/LinearMeterUnit.class
 com/foc/gui/RevisionPanel$RevisionIncrementButtonListener.class
 com/foc/pivot/FPivotRowTree$5.class
+com/foc/shared/prnLayout/PrnLayoutKey.class
 com/foc/print/FPLocation.class
 com/foc/business/workflow/implementation/FocWorkflowDesc.class
 com/foc/gui/MonoFrame.class
@@ -1705,6 +1722,7 @@ com/foc/gui/MainPanel.class
 com/foc/formula/function/FunctionOr.class
 com/foc/gui/menuGraph/FMnuGrphStep.class
 com/foc/gui/MainPanel$1.class
+com/foc/shared/json/B01JsonSaxParser.class
 com/foc/gui/table/cellControler/renderer/drawingCellRenderer/FDrawingCellRenderer.class
 com/fab/codeWriter/CodeWriter_XMLTable.class
 com/foc/print/PrintPreviewPanel$6.class
@@ -1725,11 +1743,13 @@ com/foc/pivot/FPivotValueDesc.class
 com/foc/business/notifier/FocPage.class
 com/foc/business/workflow/WFHorizontalLogDesc.class
 com/foc/saas/manager/SaaSConfig.class
+com/foc/shared/json/B01JsonSaxCallBack_Interface.class
 com/foc/desc/parsers/fields/FTypeDate.class
 com/foc/access/AccessConsole.class
 com/foc/performance/PerfThread.class
 com/foc/business/calendar/WeekShiftExceptionGuiBrowsePanel.class
 com/foc/admin/defaultappgroup/DefaultAppGroupDesc.class
+com/foc/api/IFocList.class
 com/foc/gui/FGPasswordField.class
 com/foc/formula/function/IOperand.class
 com/foc/excel/FocExcel.class
@@ -1768,6 +1788,7 @@ com/foc/fUnit/FocTestCase.class
 com/foc/business/notifier/manipulators/FocNotificationTableAddManipulator.class
 com/fab/model/menu/UserMenuAction.class
 com/foc/fUnit/LogFile.class
+com/foc/shared/dataStore/IFocDataDictionary.class
 com/foc/business/printing/IPrnReportCreator.class
 com/foc/gui/table/FocCellPainter.class
 com/foc/annotations/model/predefinedFields/FocIS_SYSTEM.class
@@ -1849,6 +1870,7 @@ com/foc/admin/UserSession.class
 com/foc/property/FDescProperty.class
 com/foc/util/FileFinder.class
 com/foc/business/workflow/implementation/FGWorkflowButtonPanel$1.class
+com/foc/shared/xmlView/XMLViewKey.class
 com/fab/model/project/FabProject.class
 com/foc/gui/table/cellControler/renderer/FCheckBoxCellRenderer.class
 com/foc/gui/table/CopyOfFTablePrintable.class
