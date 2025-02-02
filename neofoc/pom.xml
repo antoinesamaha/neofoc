@@ -10,10 +10,10 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>foc</artifactId>
+    <artifactId>neofoc</artifactId>
     <version>${neofoc.version}</version>
-    <name>foc</name>
-    <description>foc</description>
+    <name>neofoc</name>
+    <description>neofoc</description>
     <url>http://www.focframework.com</url>
 
     <dependencies>

@@ -63,7 +63,7 @@
 
         <dependency>
             <groupId>com.neofoc</groupId>
-            <artifactId>focDataSource</artifactId>
+            <artifactId>neofoc-datasource</artifactId>
             <version>${neofoc.version}</version>
         </dependency>
 
