@@ -1,4 +1,4 @@
-package com.neofoc.app.config;
+package com.neofoc.springboot.config;
 
 import com.fab.FabModule;
 import com.fab.parameterSheet.ParameterSheetFactory;

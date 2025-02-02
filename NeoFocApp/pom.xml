@@ -59,9 +59,16 @@
 
 		<dependency>
 			<groupId>com.neofoc</groupId>
-			<artifactId>focDataSource</artifactId>
+			<artifactId>neofoc-spring-boot-starter</artifactId>
 			<version>${neofoc.version}</version>
 		</dependency>
+
+<!--		<dependency>-->
+<!--			<groupId>com.neofoc</groupId>-->
+<!--			<artifactId>focDataSource</artifactId>-->
+<!--			<version>${neofoc.version}</version>-->
+<!--		</dependency>-->
+
 		<dependency>
 			<groupId>javax.servlet</groupId>
 			<artifactId>servlet-api</artifactId>

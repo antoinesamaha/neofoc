@@ -71,6 +71,7 @@
         <module>foc</module>
         <module>focOfficeLink</module>
         <module>focDataSource</module>
+        <module>neofoc-spring-boot-starter</module>
     </modules>
 
 </project>

@@ -1,4 +1,4 @@
-package com.neofoc.app.controller;
+package com.neofoc.springboot.controller;
 
 import java.io.IOException;
 import java.util.Enumeration;

@@ -1,9 +1,8 @@
-package com.neofoc.app.config;
+package com.neofoc.springboot.config;
 
 import java.util.Iterator;
 import java.util.Set;
 
-import com.foc.ConfigInfo;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.PersistenceContextType;

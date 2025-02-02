@@ -1,4 +1,4 @@
-package com.neofoc.app.controller;
+package com.neofoc.springboot.controller;
 
 import com.foc.Globals;
 import com.foc.admin.GrpMobileModuleRights;
@@ -20,9 +20,6 @@ import org.springframework.util.PathMatcher;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.HandlerMapping;
 
-import java.io.IOException;
-import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Iterator;
 
 @RestController
