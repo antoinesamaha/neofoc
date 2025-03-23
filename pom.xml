@@ -61,6 +61,17 @@
         </plugins>
     </build>
 
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/antoinesamaha/neofoc</url>
+        </repository>
+    </distributionManagement>
+
+    <scm>
+        <url>https://github.com/antoinesamaha/neofoc.git</url>
+    </scm>
+
     <!--
     <distributionManagement>
         <snapshotRepository>
@@ -72,7 +83,6 @@
             <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>
-    -->
 
     <distributionManagement>
         <snapshotRepository>
@@ -84,12 +94,12 @@
             <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>
-
     <scm>
         <url>https://github.com/antoinesamaha/neofoc.git</url>
         <connection>scm:git:git://github.com/antoinesamaha/neofoc.git</connection>
         <developerConnection>scm:git:git@github.com/antoinesamaha/neofoc.git</developerConnection>
     </scm>
+    -->
 
     <modules>
         <module>neofoc</module>
