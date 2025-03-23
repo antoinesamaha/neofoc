@@ -29,7 +29,7 @@ public abstract class OptionDialog {
 	private String width   = "-1px";
 	private String height  = "200px";
     private IFocData focData = null;
-    private boolean html = false;
+    private boolean  html = false;
 	
 	private ArrayList<Option> optionArray = null; 
 	
