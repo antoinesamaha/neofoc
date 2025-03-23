@@ -9,7 +9,7 @@ package com.foc;
 public class GarbageClass {
   double toto = 3;
   /*
-  
+
   double toti = 4.3;
   double tot1 = 4.3;
   double toto2= 4.3;
