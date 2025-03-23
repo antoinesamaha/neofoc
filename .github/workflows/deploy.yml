@@ -25,6 +25,8 @@ jobs:
       - name: Set Version for Dev Branch
         if: github.ref == 'refs/heads/dev'
         run: mvn versions:set -DnewVersion=1.0.0-SNAPSHOT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 
       - name: Deploy to GitHub Packages
         run: mvn deploy
