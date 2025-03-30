@@ -39,7 +39,7 @@ public class RunAfterStartup {
 		initApplication();
 		scanEntitiesAndCreateFocDesc();
 		Globals.getApp().adaptDataModel(false, false);
-		
+
 		//insertProjectAndMilestones();
 	}
 

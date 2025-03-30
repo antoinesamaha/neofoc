@@ -26,7 +26,21 @@ import java.util.Iterator;
 import com.foc.ConfigInfo;
 import com.foc.Globals;
 import com.foc.IFocDescDeclaration;
+import com.foc.admin.FocGroup;
+import com.foc.admin.FocUser;
+import com.foc.admin.FocUserDesc;
 import com.foc.admin.FocVersion;
+import com.foc.business.adrBook.AdrBookParty;
+import com.foc.business.adrBook.AdrBookPartyDesc;
+import com.foc.business.company.Company;
+import com.foc.business.company.CompanyDesc;
+import com.foc.business.company.UserCompanyRightsDesc;
+import com.foc.business.workflow.WFSite;
+import com.foc.business.workflow.WFTitle;
+import com.foc.business.workflow.WFTitleDesc;
+import com.foc.business.workflow.map.WFTransactionConfigDesc;
+import com.foc.business.workflow.rights.RightLevel;
+import com.foc.business.workflow.rights.RightLevelDesc;
 import com.foc.db.DBIndex;
 import com.foc.db.DBManager;
 import com.foc.db.FocDBException;
@@ -50,6 +64,7 @@ import com.foc.focDataSourceDB.db.connectionPooling.ConnectionPool;
 import com.foc.focDataSourceDB.db.connectionPooling.StatementWrapper;
 import com.foc.focDataSourceDB.db.util.DBUtil;
 import com.foc.list.FocLink;
+import com.foc.list.FocList;
 import com.foc.util.ASCII;
 import com.foc.util.Utils;
 
@@ -348,6 +363,9 @@ public class DBAdaptor {
         } finally {
             dispose_ActualTablesByConnection();
         }
+
+        createCompanyGroupAndUserIfNonExist();
+
         return false;
     }
 
@@ -952,5 +970,79 @@ public class DBAdaptor {
 
     public boolean isAlterAllFields() {
         return alterAllFields;
+    }
+
+    private void createCompanyGroupAndUserIfNonExist() {
+        //Check if there is no company we create the Empty one + Empty User
+        //-----------------------------------------------------------------
+        AdrBookParty adrBookParty = null;
+        //Scan companies and give rights to 01Barmaja
+        FocList companyList = CompanyDesc.getInstance().getFocList(FocList.LOAD_IF_NEEDED);
+        if (companyList != null) {
+            if (companyList.size() == 0) {
+                //We need to create a company if it is the first one
+                Company company = (Company) companyList.newEmptyItem();
+                company.setName("EMPTY");
+
+                adrBookParty = (AdrBookParty) AdrBookPartyDesc.getInstance().getFocList().newEmptyItem();
+                adrBookParty.setCode("P14-0001");
+                adrBookParty.setName(AdrBookParty.EMPTY_PARTY);
+                adrBookParty.validate(true);
+                AdrBookPartyDesc.getInstance().getFocList().validate(true);
+                company.setAdrBookParty(adrBookParty);
+                FocGroup group = FocGroup.createIfNotExist(FocGroup.STANDARD);
+                group.validate(true);
+                FocUser user = FocUser.createIfNotExist(FocUser.EMPTY_USER, "", group);
+                user.validate(true);
+                company.validate(true);
+
+                company.findOrCreateSite(WFSite.DEFAULT_SITE_NAME);
+                companyList.add(company);
+
+                //20151216
+                //We need Create WFTransactionConfig after having a new company if there is no companies and it is just created
+                //because we where checking for the WFTransactionConfig in WFTransactionConfigDesc.afterAdaptTableModel() method in WFTransactionConfigDesc
+                //and in case of 'Saasprocurement' we don't have a company at that level.
+                WFTransactionConfigDesc.completeListForAllCompanies();
+                //-------
+                companyList.validate(true);
+            }
+        }
+
+        //Create the user 01BARMAJA if not exists and the group 01BARMAJA as well
+        //-----------------------------------------------------------------------
+        FocUser barmajaUser = null;
+        FocGroup barmajaGroup = null;
+        WFTitle superTitle = null;
+        RightLevel rightLevel = null;
+
+        FocList focList = FocUserDesc.getList();
+        focList.loadIfNotLoadedFromDB();
+        //		if(focList.size() == 0){
+        if (ConfigInfo.isCreateAdminUserIfNotExist()) {
+            barmajaGroup = FocGroup.createIfNotExist("FOCADMIN");//"01BARMAJA"
+            barmajaUser = FocUser.createIfNotExist("FOCADMIN", "FOCADMIN", barmajaGroup);//"01BARMAJA", "01BMJ"
+            superTitle = WFTitleDesc.getInstance().findOrAddTitle(WFTitle.TITLE_SUPERUSER);
+            rightLevel = RightLevelDesc.getInstance().findOrAddRightLevel(RightLevelDesc.ALL_RIGHTS);
+
+            //Give 01BARMAJA the rights on all defined companies
+            //--------------------------------------------------
+            if (barmajaUser != null) {
+                for (int i = 0; i < companyList.size(); i++) {
+                    Company comp = (Company) companyList.getFocObject(i);
+                    barmajaUser.addCompanyRights(comp, UserCompanyRightsDesc.ACCESS_RIGHT_READ_WRITE);
+                    WFSite site = comp.findSite(WFSite.DEFAULT_SITE_NAME);
+                    if (site != null) {
+                        site.findOrAddUserTransactionRight(superTitle, null, "", rightLevel);
+                        site.findOrAddOperator(superTitle, barmajaUser);
+                    }
+                    comp.validate(true);
+                }
+            }
+
+            barmajaUser.validate(true);
+            if (barmajaUser.getFatherSubject() != null) barmajaUser.getFatherSubject().validate(true);
+            //-----------------------------------------------------------------------
+        }
     }
 }

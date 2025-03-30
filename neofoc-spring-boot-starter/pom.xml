@@ -56,7 +56,7 @@
 
         <dependency>
             <groupId>com.neofoc</groupId>
-            <artifactId>foc</artifactId>
+            <artifactId>neofoc</artifactId>
             <version>${neofoc.version}</version>
             <scope>compile</scope>
         </dependency>

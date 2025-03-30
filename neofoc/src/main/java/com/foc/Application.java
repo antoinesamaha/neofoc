@@ -36,6 +36,13 @@ import javax.xml.transform.TransformerFactoryConfigurationError;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import com.foc.business.adrBook.AdrBookParty;
+import com.foc.business.adrBook.AdrBookPartyDesc;
+import com.foc.business.company.UserCompanyRightsDesc;
+import com.foc.business.workflow.WFTitleDesc;
+import com.foc.business.workflow.map.WFTransactionConfigDesc;
+import com.foc.business.workflow.rights.RightLevel;
+import com.foc.business.workflow.rights.RightLevelDesc;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -105,7 +112,21 @@ import com.foc.util.Utils;
 public class Application {
 
     public static final String ARG_BLOB_STORAGE_FOLDER_PREFIX = "blobStorageFolderPrefix";
-
+    public static final int LOGIN_WAITING = 1;
+    public static final int LOGIN_VALID = 2;
+    public static final int LOGIN_ADMIN = 3;
+    public static final int LOGIN_WRONG = 4;
+    public static final String REGISTRY_PARENT_APPLICATION_NODE_NAME = "01barmaja";
+    public static final String REGISTRY_APPLICATION_DIRECTORY = "directory";
+    public static final String REGISTRY_APPLICATION_ENVIRONMENT = "lastenv";
+    public static final String REGISTRY_APPLICATION_INSTALL_DATE = "install_date";
+    public static final String DEFAULT_COMPANY_NAME = "EMPTY";
+    public static final int PROCESS_TYPE_DESKTOP_CLIENT = 0;
+    public static final int PROCESS_TYPE_WEB_SERVER = 1;
+    public static final int PROCESS_TYPE_WEB_CLIENT = 2;
+    private static int debug = 1;
+    public boolean isUnitTest = false;
+    public FSerializerDictionary htmlGeneratorDictionary = null;
     private String url = null;
     private DataStore dataStore = null;//Contains FocLists and Singleton FocObjects
     private FocDescMap focDescMap = null;//Contains the FocDesc definitions
@@ -115,12 +136,10 @@ public class Application {
     private FocNotificationEventFactory focNEF = null;
     private FocNotifActionFactory notifActionFactory = null;
     private SaaSConfig appConfiguration = null;
-
     private IFocDataSource dataSource = null;
     private IFocCloudStorage cloudStorage = null;
     private String cloudStorageDirectory = null;
     private boolean cloudStorage_TryToGet = true;
-
     private PerfManager perfManager = null;
     private DBManager dbManager = null;
     private DisplayManager dispManager = null;
@@ -141,7 +160,6 @@ public class Application {
     private FocUser user = null;
     private boolean withReporting = false;
     private UserSession userSession_Swing = null;
-
     private FMenu mainAppMenu = null;
     private FMenu mainFocMenu = null;
     private FMenu mainAdminMenu = null;
@@ -150,67 +168,28 @@ public class Application {
     private java.sql.Date systemDate = null;
     private boolean cashDeskModuleIncluded = false;
     private boolean currencyModuleIncluded = false;
-
     private boolean disableMenus = false;
     private boolean isExiting = false;
     private String name = null;
     private boolean isDemo = false;
     private int trialPeriod = 0;
     private long timeZoneShift = -10 * Globals.DAY_TIME;
-
     private ArrayList<IExitListener> exitListenerList = null;// il faut hash map
     private HashMap<String, IFocDescDeclaration> iFocDescDeclarationMap = null;
-
     private ArrayList<String> fabDefTables_ForAdaptFirst = null;
-
     private RootGarbageClass rgc = null;
     private FocTestSuite focTestSuite = null;
-
     private FocLogListener logListener = null;
-
     //FILE_ENCRYPTION
     private IFocEncryptor iFocEncryptor = null;
-
-    public static final int LOGIN_WAITING = 1;
-    public static final int LOGIN_VALID = 2;
-    public static final int LOGIN_ADMIN = 3;
-    public static final int LOGIN_WRONG = 4;
-
-    public static final String REGISTRY_PARENT_APPLICATION_NODE_NAME = "01barmaja";
-    public static final String REGISTRY_APPLICATION_DIRECTORY = "directory";
-    public static final String REGISTRY_APPLICATION_ENVIRONMENT = "lastenv";
-    public static final String REGISTRY_APPLICATION_INSTALL_DATE = "install_date";
-
-    public static final String DEFAULT_COMPANY_NAME = "EMPTY";
-
     //  private String  predefinedUserLogin           = null;
 //  private String  predefinedEncriptedPassword   = null;
     private String printDataModelFileName = null;
     private boolean showBarmajaIconAndTitle = true;
-
     private ArgumentsHash argHash = null;
-
     private int processType = PROCESS_TYPE_DESKTOP_CLIENT;
-
-    public static final int PROCESS_TYPE_DESKTOP_CLIENT = 0;
-    public static final int PROCESS_TYPE_WEB_SERVER = 1;
-    public static final int PROCESS_TYPE_WEB_CLIENT = 2;
-
     private FocMenuSettings menuSettings = null;
-
-    public boolean isUnitTest = false;
-
-    public FSerializerDictionary htmlGeneratorDictionary = null;
-
     private IDBReloader dbReloader = null;
-
-
-    public static void initArgs(String[] args) {
-        String timeZone = Application.argumentGetValue(args, "timeZone");
-        if (timeZone != null) {
-            TimeZone.setDefault(TimeZone.getTimeZone(timeZone));
-        }
-    }
 
     public Application(boolean withDatabase, boolean withLogin, boolean mdi) {
         this(withDatabase, withLogin, mdi, null);
@@ -226,10 +205,6 @@ public class Application {
 
     public Application(boolean withDatabase, boolean withLogin, int guiNavigatorType, String appName, int trialPeriod) {
         this(withDatabase, withLogin, guiNavigatorType, appName, trialPeriod, null);
-    }
-
-    public boolean isWithGui() {
-        return this.guiNavigatorType != DisplayManager.GUI_NAVIGATOR_NONE;
     }
 
     public Application(boolean withDatabase, boolean withLogin, int guiNavigatorType, String appName, int trialPeriod, String args[]) {
@@ -285,6 +260,50 @@ public class Application {
 
         //FILE_ENCRYPTION
         setFocEncryptionIfConfigured();
+    }
+
+    public static void initArgs(String[] args) {
+        String timeZone = Application.argumentGetValue(args, "timeZone");
+        if (timeZone != null) {
+            TimeZone.setDefault(TimeZone.getTimeZone(timeZone));
+        }
+    }
+
+    public static String argumentGetValue(String[] args, String key) {
+        String value = null;
+        int pos = argumentGetPositionForKey(args, key);
+        if (pos >= 0) {
+            String arg = args[pos];
+            if (arg.length() > key.length() + 2) {
+                value = arg.substring(key.length() + 2);
+            }
+        }
+        return value;
+    }
+
+    public static boolean argumentExists(String[] args, String key) {
+        return argumentGetPositionForKey(args, key) != -1;
+    }
+
+    private static int argumentGetPositionForKey(String[] args, String key) {
+        int pos = 0;
+        boolean found = false;
+        if (args != null) {
+            while (pos < args.length && !found) {
+                String arg = args[pos];
+                if (arg != null) {
+                    found = arg.startsWith("-" + key) || arg.startsWith("/" + key);
+                }
+                if (!found) {
+                    pos++;
+                }
+            }
+        }
+        return found ? pos : -1;
+    }
+
+    public boolean isWithGui() {
+        return this.guiNavigatorType != DisplayManager.GUI_NAVIGATOR_NONE;
     }
 
     public FocMenuSettings getFocMenuSettings() {
@@ -494,6 +513,29 @@ public class Application {
     public Iterator<IFocDescDeclaration> getFocDescDeclarationIterator() {
         return getFocObjectsList().iterator();
     }
+  
+  /*public FocDesc getFocDescByName(String name){
+  	FocDesc res = null;
+  	if(name != null){
+  		res = getFocDescFromMap(name);
+  		if(res == null){
+		  	Iterator<IFocDescDeclaration> iter = getFocDescDeclarationIterator();
+		  	while(iter != null && iter.hasNext() && res == null){
+		  		IFocDescDeclaration iFocDescDeclaration = iter.next();
+		  		if(iFocDescDeclaration != null){
+		  			FocDesc focDesc = iFocDescDeclaration.getFocDesctiption();
+		  			if(focDesc != null){
+		  				if(name.equals(focDesc.getStorageName())){
+		  					putFocDescInMap(focDesc);
+		  					res = focDesc;
+		  				}
+		  			}
+		  		}
+		  	}
+  		}
+  	}
+  	return res;
+  }*/
 
     private HashMap<String, IFocDescDeclaration> getIFocDescDeclarationMap() {
         if (this.iFocDescDeclarationMap == null) {
@@ -534,29 +576,6 @@ public class Application {
         }
         return iFocDescDeclaration;
     }
-  
-  /*public FocDesc getFocDescByName(String name){
-  	FocDesc res = null;
-  	if(name != null){
-  		res = getFocDescFromMap(name);
-  		if(res == null){
-		  	Iterator<IFocDescDeclaration> iter = getFocDescDeclarationIterator();
-		  	while(iter != null && iter.hasNext() && res == null){
-		  		IFocDescDeclaration iFocDescDeclaration = iter.next();
-		  		if(iFocDescDeclaration != null){
-		  			FocDesc focDesc = iFocDescDeclaration.getFocDesctiption();
-		  			if(focDesc != null){
-		  				if(name.equals(focDesc.getStorageName())){
-		  					putFocDescInMap(focDesc);
-		  					res = focDesc;
-		  				}
-		  			}
-		  		}
-		  	}
-  		}
-  	}
-  	return res;
-  }*/
 
     public FocDesc getFocDescByName(String name) {
         FocDesc res = null;
@@ -583,39 +602,6 @@ public class Application {
         return res;
     }
 
-    public static String argumentGetValue(String[] args, String key) {
-        String value = null;
-        int pos = argumentGetPositionForKey(args, key);
-        if (pos >= 0) {
-            String arg = args[pos];
-            if (arg.length() > key.length() + 2) {
-                value = arg.substring(key.length() + 2);
-            }
-        }
-        return value;
-    }
-
-    public static boolean argumentExists(String[] args, String key) {
-        return argumentGetPositionForKey(args, key) != -1;
-    }
-
-    private static int argumentGetPositionForKey(String[] args, String key) {
-        int pos = 0;
-        boolean found = false;
-        if (args != null) {
-            while (pos < args.length && !found) {
-                String arg = args[pos];
-                if (arg != null) {
-                    found = arg.startsWith("-" + key) || arg.startsWith("/" + key);
-                }
-                if (!found) {
-                    pos++;
-                }
-            }
-        }
-        return found ? pos : -1;
-    }
-
     public boolean isWithReporting() {
         return withReporting;
     }
@@ -624,12 +610,12 @@ public class Application {
         this.withReporting = withReporting;
     }
 
-    public void setRightsByLevel(RightsByLevel rightsByLevel) {
-        this.rightsByLevel = rightsByLevel;
-    }
-
     public RightsByLevel getRightsByLevel() {
         return rightsByLevel;
+    }
+
+    public void setRightsByLevel(RightsByLevel rightsByLevel) {
+        this.rightsByLevel = rightsByLevel;
     }
 
     public boolean isWithRightsByLevel() {
@@ -733,7 +719,7 @@ public class Application {
         dbAsciiConverter = new DB2ASCII(dbFile, DB2ASCII.COPY_DIRECTION_ASCII_TO_DB);
       } catch (Exception e) {
         Globals.logException(e);
-      } 
+      }
     }
     */
 
@@ -750,7 +736,6 @@ public class Application {
     public boolean isLoginAdministrator() {
         return getLoginStatus() == LOGIN_ADMIN;
     }
-
 
     public boolean isLoginValid() {
         return getLoginStatus() == LOGIN_VALID;
@@ -1054,14 +1039,14 @@ public class Application {
         if(group != null && (group.allowDatabaseBackup() || group.allowDatabaseRestore())){
           FMenuList databaseList = new FMenuList("Database", 'D');
           toolsMenu.addMenu(databaseList);
-          
+
           if(group.allowDatabaseBackup()){
 	          FMenuItem backupDatabaseItem = new FMenuItem("Backup Custom Configuration only", 'o', new AbstractAction(){
 	  					public void actionPerformed(ActionEvent e) {
 	  						try {
-		  						DBBackupFileChooser fileChooser = new DBBackupFileChooser(); 
+		  						DBBackupFileChooser fileChooser = new DBBackupFileChooser();
 		  						String outputFile = fileChooser.choose();
-		  						
+
 		  						if(outputFile != null){
 	  	  						DB2ASCII db2Ascii = new DB2ASCII(outputFile, DB2ASCII.COPY_DIRECTION_DB_TO_ASCII);
 	  	  						db2Ascii.setFabOnly(true);
@@ -1075,14 +1060,14 @@ public class Application {
 	          });
 	          databaseList.addMenu(backupDatabaseItem);
           }
-          
+
           if(group.allowDatabaseBackup()){
 	          FMenuItem backupDatabaseItem = new FMenuItem("Backup", 'B', new AbstractAction(){
 	  					public void actionPerformed(ActionEvent e) {
 	  						try {
-		  						DBBackupFileChooser fileChooser = new DBBackupFileChooser(); 
+		  						DBBackupFileChooser fileChooser = new DBBackupFileChooser();
 		  						String outputFile = fileChooser.choose();
-		  						
+
 		  						if(outputFile != null){
 	  	  						DB2ASCII db2Ascii = new DB2ASCII(outputFile, DB2ASCII.COPY_DIRECTION_DB_TO_ASCII);
 										db2Ascii.backupRestore();
@@ -1095,14 +1080,14 @@ public class Application {
 	          });
 	          databaseList.addMenu(backupDatabaseItem);
           }
-          
+
           if(group.allowDatabaseRestore()){
 	          FMenuItem restoreDatabaseItem = new FMenuItem("Restore", 'R', new AbstractAction(){
 	  					public void actionPerformed(ActionEvent e) {
 	  						try {
-		  						DBBackupFileChooser fileChooser = new DBBackupFileChooser(); 
+		  						DBBackupFileChooser fileChooser = new DBBackupFileChooser();
 		  						String outputFile = fileChooser.choose();
-		  						
+
 		  						if(outputFile != null){
 	  	  						DB2ASCII db2Ascii = new DB2ASCII(outputFile, DB2ASCII.COPY_DIRECTION_ASCII_TO_DB);
 										db2Ascii.backupRestore();
@@ -1115,13 +1100,13 @@ public class Application {
 	          });
 	          databaseList.addMenu(restoreDatabaseItem);
           }
-          
+
           FMenuItem dataDictionaryItem = new FMenuItem("Data Dictionary", 'D', new AbstractAction(){
 						public void actionPerformed(ActionEvent e) {
 							FocConstructor focConstr = new FocConstructor(DataModelEntryDesc.getInstance(), null);
 							DataModelEntry entry = (DataModelEntry) focConstr.newItem();
 							DataModelEntryGuiDetailsPanel detailsPanel = new DataModelEntryGuiDetailsPanel(entry, 0);
-							Globals.getDisplayManager().popupDialog(detailsPanel, "Dictionay Lookup - Select a table and a depth", true); 
+							Globals.getDisplayManager().popupDialog(detailsPanel, "Dictionay Lookup - Select a table and a depth", true);
 						}
           });
           toolsMenu.addMenu(dataDictionaryItem);
@@ -1141,7 +1126,7 @@ public class Application {
                 focHelp.putHelpFileUrl("Navigation", "help/foc/navigationTips.html");
             }
             focHelp.fillHelpMenu(helpMenu);
-      
+
       /*FMenuItem navigationHelpItem = new FMenuItem("Navigation", 'v', navigationHelpAction);
       helpMenu.addMenu(navigationHelpItem);*/
 
@@ -1186,12 +1171,12 @@ public class Application {
         if (getDisplayManager() != null) getDisplayManager().reconstructMenu(loginStatus);
     }
 
-    public void setFocTestSuite(FocTestSuite focTestSuite) {
-        this.focTestSuite = focTestSuite;
-    }
-
     public FocTestSuite getFocTestSuite() {
         return focTestSuite;
+    }
+
+    public void setFocTestSuite(FocTestSuite focTestSuite) {
+        this.focTestSuite = focTestSuite;
     }
 
     public boolean isUnitTesting() {
@@ -1363,13 +1348,6 @@ public class Application {
         declaredObjectList_DeclareObjectForExistingInstance(module, classObject);
     }
 
-    public void declaredObjectList_DeclareDescription(IFocDescDeclaration focDescDeclaration) {
-        ArrayList<IFocDescDeclaration> focObjectsArrayList = getFocObjectsList();
-        if (focDescDeclaration != null) {
-            focObjectsArrayList.add(focDescDeclaration);
-        }
-    }
-
   /*private int declaredObjectList_SizeX() {
     return focObjects.size();
   }
@@ -1419,7 +1397,12 @@ public class Application {
     FocVersion.saveVersions();
   }*/
 
-    private static int debug = 1;
+    public void declaredObjectList_DeclareDescription(IFocDescDeclaration focDescDeclaration) {
+        ArrayList<IFocDescDeclaration> focObjectsArrayList = getFocObjectsList();
+        if (focDescDeclaration != null) {
+            focObjectsArrayList.add(focDescDeclaration);
+        }
+    }
 
     public void adaptDataModel(boolean forceAlterTables, boolean schemaEmpty) {
         Globals.logString("Init Web Server " + (debug++));
@@ -1708,6 +1691,24 @@ public class Application {
         return user;
     }
 
+    public void setUser(FocUser user) {
+        this.user = user;
+        updateLanguage();
+        if (user != null) {
+            FMultipleChoice langMulti = (FMultipleChoice) user.getFocProperty(FocUser.FLD_LANGUAGE);
+            if (langMulti != null) {
+                langMulti.addListener(new FPropertyListener() {
+                    public void propertyModified(FProperty prop) {
+                        updateLanguage();
+                    }
+
+                    public void dispose() {
+                    }
+                });
+            }
+        }
+    }
+
     public FocUser getUser_ForThisSession() {
         FocUser user = null;
         if (Globals.getApp().isWebServer()) {
@@ -1761,24 +1762,6 @@ public class Application {
         }
     }
 
-    public void setUser(FocUser user) {
-        this.user = user;
-        updateLanguage();
-        if (user != null) {
-            FMultipleChoice langMulti = (FMultipleChoice) user.getFocProperty(FocUser.FLD_LANGUAGE);
-            if (langMulti != null) {
-                langMulti.addListener(new FPropertyListener() {
-                    public void propertyModified(FProperty prop) {
-                        updateLanguage();
-                    }
-
-                    public void dispose() {
-                    }
-                });
-            }
-        }
-    }
-
     public FocGroup getGroup() {
         return user != null ? user.getGroup() : null;
     }
@@ -1796,15 +1779,15 @@ public class Application {
         return debugOutputInterface;
     }
 
+    public void setDebugOutputInterface(DebugOutputInterface debugOutputInterface) {
+        this.debugOutputInterface = debugOutputInterface;
+    }
+
     public FocNotificationManager getNotificationManager() {
         if (notificationManager == null) {
             notificationManager = new FocNotificationManager();
         }
         return notificationManager;
-    }
-
-    public void setDebugOutputInterface(DebugOutputInterface debugOutputInterface) {
-        this.debugOutputInterface = debugOutputInterface;
     }
 
     public void debugOutput(String message) {
