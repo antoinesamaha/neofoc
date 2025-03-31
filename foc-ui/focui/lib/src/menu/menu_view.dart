@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../settings/settings_view.dart';
 import 'menu.dart';
@@ -57,10 +58,11 @@ class MenuView extends StatelessWidget {
                 // Navigate to the details page. If the user leaves and returns to
                 // the app after it has been killed while running in the
                 // background, the navigation stack is restored.
-                Navigator.restorablePushNamed(
-                  context,
-                  item.entityPath,
-                );
+                GoRouter.of(context).goNamed('entities');
+                // Navigator.restorablePushNamed(
+                //   context,
+                //   item.entityPath,
+                // );
               });
         },
       ),
