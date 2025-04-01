@@ -71,8 +71,8 @@
 
     <distributionManagement>
         <repository>
-            <id>github</id>
-            <url>https://maven.pkg.github.com/antoinesamaha/neofoc</url>
+            <id>github_maven_repo</id>
+            <url>https://maven.pkg.github.com/antoinesamaha/maven_repo</url>
         </repository>
     </distributionManagement>
 
