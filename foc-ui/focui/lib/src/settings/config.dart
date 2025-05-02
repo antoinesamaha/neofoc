@@ -1,3 +1,9 @@
+import 'package:flutter/material.dart';
+import 'package:focui/src/menu/menu.dart';
+
 class Config {
-  static const String baseUrl = 'http://localhost:8099'; // Replace with your API base URL
+  static String baseUrl = 'http://localhost:8099'; // Replace with your API base URL
+  static String appName = 'Neo Foc Application'; // Name of the application, to be set by the using package
+  static IconData appIcon = Icons.construction; // Path to the application icon, to be set by the using package
+  static List<Menu> menuItems = [Menu("Countries", "/countries"), Menu("Entities", "/entities")];
 }

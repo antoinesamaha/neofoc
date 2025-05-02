@@ -8,12 +8,10 @@ import 'package:focui/src/settings/config.dart'; // For the Config class
 
 class LoginPage extends StatefulWidget {
   static const routeName = '/auth/login';
-  final String appName;
   final Widget? logo;
 
-  const LoginPage({
+  LoginPage({
     Key? key,
-    this.appName = "Neo Foc App",
     this.logo,
   }) : super(key: key);
 
@@ -76,85 +74,87 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Logo
-              widget.logo ?? Icon(Icons.construction, size: 80, color: Colors.blueAccent),
-              SizedBox(height: 20),
-              Text(widget.appName, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
-              SizedBox(height: 40),
-
-              // Username field
-              TextField(
-                controller: _usernameController,
-                decoration: InputDecoration(
-                  labelText: "Username",
-                  prefixIcon: Icon(Icons.person),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              SizedBox(height: 20),
-
-              // Password field
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: "Password",
-                  prefixIcon: Icon(Icons.lock),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              SizedBox(height: 10),
-
-              // Remember Me & Forgot Password
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 400), // Set the maximum width
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // Logo
+                  widget.logo ?? Icon(Config.appIcon, size: 80, color: Colors.blueAccent),
+                  SizedBox(height: 20),
+                  Text(Config.appName, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                  SizedBox(height: 40),
+
+                  // Username field
+                  TextField(
+                    controller: _usernameController,
+                    decoration: InputDecoration(
+                      labelText: "Username",
+                      prefixIcon: Icon(Icons.person),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+
+                  // Password field
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      prefixIcon: Icon(Icons.lock),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+
+                  // Remember Me & Forgot Password
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Checkbox(
-                        value: _rememberMe,
-                        onChanged: (value) {
-                          setState(() => _rememberMe = value!);
-                        },
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _rememberMe,
+                            onChanged: (value) {
+                              setState(() => _rememberMe = value!);
+                            },
+                          ),
+                          Text("Remember Me")
+                        ],
                       ),
-                      Text("Remember Me")
+                      TextButton(
+                        onPressed: () {},
+                        child: Text("Forgot Password?", style: TextStyle(color: Colors.blueAccent)),
+                      ),
                     ],
                   ),
-                  TextButton(
-                    onPressed: () {},
-                    child: Text("Forgot Password?", style: TextStyle(color: Colors.blueAccent)),
+                  SizedBox(height: 20),
+
+                  // Login Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        print("Logging in as: ${_usernameController.text}");
+                        _isLoading ? null : _login();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: _isLoading ? CircularProgressIndicator(color: Colors.white) : Text("Sign In", style: TextStyle(fontSize: 18)),
+                    ),
                   ),
                 ],
               ),
-              SizedBox(height: 20),
-
-              // Login Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    print("Logging in as: ${_usernameController.text}");
-                    _isLoading ? null : _login();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: _isLoading ? CircularProgressIndicator(color: Colors.white) : Text("Sign In", style: TextStyle(fontSize: 18)),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
-    );
+        ));
   }
 }

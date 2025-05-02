@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:focui/src/settings/config.dart';
 import 'package:go_router/go_router.dart';
 
 import '../settings/settings_view.dart';
@@ -6,14 +7,11 @@ import 'menu.dart';
 
 /// Displays a list of SampleItems.
 class MenuView extends StatelessWidget {
-  const MenuView({
-    super.key,
-    this.items = const [Menu("Countries", "/countries"), Menu("Entities", "/entities")],
-  });
+  MenuView({super.key});
 
   static const routeName = '/';
 
-  final List<Menu> items;
+  List<Menu> items = Config.menuItems;
 
   @override
   Widget build(BuildContext context) {

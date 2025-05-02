@@ -6,7 +6,7 @@ import 'package:focui/src/menu/menu_view.dart';
 import 'package:focui/src/services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 
-final GoRouter appRouter = GoRouter(
+GoRouter appRouter = GoRouter(
   initialLocation: '/',
   redirect: (context, state) async {
     final authService = getIt<AuthService>();
@@ -31,12 +31,12 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/login',
       name: 'login',
-      builder: (context, state) => const LoginPage(),
+      builder: (context, state) => LoginPage(),
     ),
     GoRoute(
       path: '/home',
       name: 'home',
-      builder: (context, state) => const MenuView(),
+      builder: (context, state) => MenuView(),
     ),
     GoRoute(
       path: '/entities',

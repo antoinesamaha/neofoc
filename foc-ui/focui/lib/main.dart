@@ -26,7 +26,7 @@ void neoFocMain() async {
   // Run the app and pass in the SettingsController. The app listens to the
   // SettingsController for changes, then passes it further down to the
   // SettingsView.
-  // runApp(NeoFocApp(settingsController: settingsController));
+  //runApp(NeoFocApp(settingsController: settingsController));
 
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
