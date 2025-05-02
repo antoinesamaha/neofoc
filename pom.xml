@@ -73,11 +73,11 @@
     <distributionManagement>
         <snapshotRepository>
             <id>github</id>
-            <url>https://maven.pkg.github.com/antoinesamaha/maven_repo</url>
+            <url>https://maven.pkg.github.com/antoinesamaha/neofoc</url>
         </snapshotRepository>
         <repository>
             <id>github</id>
-            <url>https://maven.pkg.github.com/antoinesamaha/maven_repo</url>
+            <url>https://maven.pkg.github.com/antoinesamaha/neofoc</url>
         </repository>
     </distributionManagement>
 
