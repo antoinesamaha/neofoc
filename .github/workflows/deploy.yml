@@ -30,10 +30,10 @@ jobs:
           fi
 
       - name: Build project
-        run: mvn clean package -Dneofocversion=${{ env.VERSION }}
+        run: mvn clean package -Dneofocversion=${{ env.VERSION }} --settings .mvn/settings.xml
 
       - name: Publish to GitHub Packages
-        run: mvn deploy -Dneofocversion=${{ env.VERSION }}
+        run: mvn deploy -Dneofocversion=${{ env.VERSION }} --settings .mvn/settings.xml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
