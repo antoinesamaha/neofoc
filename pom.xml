@@ -5,8 +5,9 @@
 
     <groupId>com.neofoc</groupId>
     <artifactId>neofoc-parent</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>neofoc</name>
+<!--    <version>0.0.1-SNAPSHOT</version>-->
+    <version>${neofoc.version}</version>
+    <name>neofoc-parent</name>
     <description>neofoc-parent</description>
     <url>http://www.focframework.com</url>
     <packaging>pom</packaging>
