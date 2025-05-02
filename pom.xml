@@ -72,11 +72,11 @@
 
     <distributionManagement>
         <snapshotRepository>
-            <id>github_maven_repo</id>
+            <id>github</id>
             <url>https://maven.pkg.github.com/antoinesamaha/maven_repo</url>
         </snapshotRepository>
         <repository>
-            <id>github_maven_repo</id>
+            <id>github</id>
             <url>https://maven.pkg.github.com/antoinesamaha/maven_repo</url>
         </repository>
     </distributionManagement>
