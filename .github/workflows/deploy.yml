@@ -35,7 +35,7 @@ jobs:
       - name: Publish to GitHub Packages
         run: mvn deploy -Dneofocversion=${{ env.VERSION }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release (only on main)
         if: github.ref == 'refs/heads/main'
@@ -45,7 +45,7 @@ jobs:
           name: Latest Release
           files: target/*.jar
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 #jobs:
 #  deploy:
