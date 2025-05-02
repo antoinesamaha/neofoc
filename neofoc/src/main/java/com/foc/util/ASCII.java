@@ -225,6 +225,13 @@ public class ASCII {
 		ret = ret.toUpperCase();
 		return ret;
 	}
+
+	public static String convertJavaClassNameTo_SmallLettersWith_(String javaClassName){
+		String ret = convertJavaClassNameToATitleWithSpacesAndCapitals(javaClassName);
+		ret = ret.replace(" ", "_");
+		ret = ret.toLowerCase();
+		return ret;
+	}
 	
   public static String newCodeName(String code, String name, int codeLength){
   	StringBuffer buff = new StringBuffer(code);
