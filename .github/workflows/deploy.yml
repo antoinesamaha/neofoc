@@ -13,28 +13,68 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up JDK
-        uses: actions/setup-java@v3
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
-          java-version: '17'
           distribution: 'temurin'
-          server-id: github
-          settings-path: ${{ github.workspace }}
+          java-version: '17'
 
-      - name: Set Version for Dev Branch
-        if: github.ref == 'refs/heads/dev'
-        run: mvn versions:set -DnewVersion=1.0.0-SNAPSHOT
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
-
-      - name: Configure Maven Settings
+      - name: Set dynamic version
         run: |
-          mkdir -p ~/.m2
-          echo "<settings><servers><server><id>github</id><username>${{ github.actor }}</username><password>${{ secrets.GH_PACKAGES_TOKEN }}</password></server></servers></settings>" > ~/.m2/settings.xml
+          if [[ "${GITHUB_REF##*/}" == "main" ]]; then
+            echo "VERSION=1.0.0" >> $GITHUB_ENV
+          else
+            echo "VERSION=1.0.0-SNAPSHOT" >> $GITHUB_ENV
+          fi
 
-      - name: Deploy to GitHub Packages
-        run: mvn deploy
+      - name: Build project
+        run: mvn clean package -Dneofocversion=${{ env.VERSION }}
+
+      - name: Publish to GitHub Packages
+        run: mvn deploy -Dneofocversion=${{ env.VERSION }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release (only on main)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest Release
+          files: target/*.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+#jobs:
+#  deploy:
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v3
+#
+#      - name: Set up JDK
+#        uses: actions/setup-java@v3
+#        with:
+#          java-version: '17'
+#          distribution: 'temurin'
+#          server-id: github
+#          settings-path: ${{ github.workspace }}
+#
+#      - name: Set Version for Dev Branch
+#        if: github.ref == 'refs/heads/dev'
+#        run: mvn versions:set -DnewVersion=1.0.0-SNAPSHOT
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+#
+#      - name: Configure Maven Settings
+#        run: |
+#          mkdir -p ~/.m2
+#          echo "<settings><servers><server><id>github</id><username>${{ github.actor }}</username><password>${{ secrets.GH_PACKAGES_TOKEN }}</password></server></servers></settings>" > ~/.m2/settings.xml
+#
+#      - name: Deploy to GitHub Packages
+#        run: mvn deploy
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}

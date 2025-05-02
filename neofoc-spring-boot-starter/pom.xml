@@ -12,13 +12,13 @@
 
     <groupId>com.neofoc</groupId>
     <artifactId>neofoc-spring-boot-starter</artifactId>
-    <version>${neofoc.version}</version>
+    <version>${neofocversion}</version>
     <name>neofoc-spring-boot-starter</name>
     <description>neofoc-spring-boot-starter</description>
     <packaging>jar</packaging>
 
     <properties>
-        <neofoc.version>2.0.0-SNAPSHOT</neofoc.version>
+        <neofocversion>2.0.0-SNAPSHOT</neofocversion>
 
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
@@ -57,14 +57,14 @@
         <dependency>
             <groupId>com.neofoc</groupId>
             <artifactId>neofoc</artifactId>
-            <version>${neofoc.version}</version>
+            <version>${neofocversion}</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>com.neofoc</groupId>
             <artifactId>neofoc-datasource</artifactId>
-            <version>${neofoc.version}</version>
+            <version>${neofocversion}</version>
         </dependency>
 
         <dependency>

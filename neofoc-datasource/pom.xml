@@ -7,12 +7,12 @@
     <parent>
         <groupId>com.neofoc</groupId>
         <artifactId>neofoc-parent</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <version>${neofocversion}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>neofoc-datasource</artifactId>
-    <version>${neofoc.version}</version>
+    <version>${neofocversion}</version>
     <name>neofoc-datasource</name>
     <description>neofoc-datasource</description>
     <url>http://www.focframework.com</url>
@@ -21,7 +21,7 @@
         <dependency>
             <groupId>com.neofoc</groupId>
             <artifactId>neofoc</artifactId>
-            <version>${neofoc.version}</version>
+            <version>${neofocversion}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>

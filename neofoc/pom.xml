@@ -7,12 +7,12 @@
     <parent>
         <groupId>com.neofoc</groupId>
         <artifactId>neofoc-parent</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <version>${neofocversion}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>neofoc</artifactId>
-    <version>${neofoc.version}</version>
+    <version>${neofocversion}</version>
     <name>neofoc</name>
     <description>neofoc</description>
     <url>http://www.focframework.com</url>

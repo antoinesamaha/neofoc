@@ -6,7 +6,7 @@
     <groupId>com.neofoc</groupId>
     <artifactId>neofoc-parent</artifactId>
 <!--    <version>0.0.1-SNAPSHOT</version>-->
-    <version>${neofoc.version}</version>
+    <version>${neofocversion}</version>
     <name>neofoc-parent</name>
     <description>neofoc-parent</description>
     <url>http://www.focframework.com</url>
@@ -29,7 +29,7 @@
     </developers>
 
     <properties>
-        <neofoc.version>2.0.0-SNAPSHOT</neofoc.version>
+        <neofocversion>2.0.0-SNAPSHOT</neofocversion>
 
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
@@ -71,6 +71,10 @@
     </build>
 
     <distributionManagement>
+        <snapshotRepository>
+            <id>github_maven_repo</id>
+            <url>https://maven.pkg.github.com/antoinesamaha/maven_repo</url>
+        </snapshotRepository>
         <repository>
             <id>github_maven_repo</id>
             <url>https://maven.pkg.github.com/antoinesamaha/maven_repo</url>
