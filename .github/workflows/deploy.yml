@@ -29,6 +29,21 @@ jobs:
             echo "VERSION=1.0.0-SNAPSHOT" >> $GITHUB_ENV
           fi
 
+      - name: Configure Maven settings.xml
+        run: |
+          mkdir -p ~/.m2
+          cat <<EOF > ~/.m2/settings.xml
+          <settings>
+            <servers>
+              <server>
+                <id>github</id>
+                <username>${{ github.actor }}</username>
+                <password>${{ secrets.GITHUB_TOKEN }}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
       - name: Build project
         run: mvn clean package -Dneofocversion=${{ env.VERSION }} --settings .mvn/settings.xml
 
