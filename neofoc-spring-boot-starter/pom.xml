@@ -95,4 +95,19 @@
         </plugins>
     </build>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/antoinesamaha/neofoc</url>
+        </snapshotRepository>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/antoinesamaha/neofoc</url>
+        </repository>
+    </distributionManagement>
+
+    <scm>
+        <url>https://github.com/antoinesamaha/neofoc.git</url>
+    </scm>
+
 </project>
