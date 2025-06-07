@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:focui/main.dart';
-import 'package:focui/src/services/auth_service.dart';
+import 'package:focui/src/auth/auth_service.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:convert'; // For jsonEncode and jsonDecode
-import 'package:http/http.dart' as http; // For making HTTP requests
 import 'package:focui/src/settings/config.dart'; // For the Config class
 
 class LoginPage extends StatefulWidget {
@@ -67,8 +65,10 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     // Set default values for the text fields
-    _usernameController.text = "FOCADMIN"; // Replace with your desired default value
-    _passwordController.text = "FOCADMIN"; // Replace with your desired default value
+    _usernameController.text =
+        "FOCADMIN"; // Replace with your desired default value
+    _passwordController.text =
+        "FOCADMIN"; // Replace with your desired default value
   }
 
   @override
@@ -79,15 +79,28 @@ class _LoginPageState extends State<LoginPage> {
           child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: 400), // Set the maximum width
+              constraints:
+                  BoxConstraints(maxWidth: 400), // Set the maximum width
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Logo
-                  widget.logo ?? Icon(Config.appIcon, size: 80, color: Colors.blueAccent),
+                  widget.logo ??
+                      //Icon(Config.appIcon, size: 80, color: Colors.blueAccent),
+                      Image.asset(
+                        'assets/images/logo.png',
+                        width: 400,
+                        height: 100,
+                        fit: BoxFit.contain,
+                      ),
+
                   SizedBox(height: 20),
-                  Text(Config.appName, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                  Text(Config.appName,
+                      style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueAccent)),
                   SizedBox(height: 40),
 
                   // Username field
@@ -96,7 +109,8 @@ class _LoginPageState extends State<LoginPage> {
                     decoration: InputDecoration(
                       labelText: "Username",
                       prefixIcon: Icon(Icons.person),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                   SizedBox(height: 20),
@@ -108,7 +122,8 @@ class _LoginPageState extends State<LoginPage> {
                     decoration: InputDecoration(
                       labelText: "Password",
                       prefixIcon: Icon(Icons.lock),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                   SizedBox(height: 10),
@@ -130,7 +145,8 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       TextButton(
                         onPressed: () {},
-                        child: Text("Forgot Password?", style: TextStyle(color: Colors.blueAccent)),
+                        child: Text("Forgot Password?",
+                            style: TextStyle(color: Colors.blueAccent)),
                       ),
                     ],
                   ),
@@ -146,9 +162,12 @@ class _LoginPageState extends State<LoginPage> {
                       },
                       style: ElevatedButton.styleFrom(
                         padding: EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: _isLoading ? CircularProgressIndicator(color: Colors.white) : Text("Sign In", style: TextStyle(fontSize: 18)),
+                      child: _isLoading
+                          ? CircularProgressIndicator(color: Colors.white)
+                          : Text("Sign In", style: TextStyle(fontSize: 18)),
                     ),
                   ),
                 ],

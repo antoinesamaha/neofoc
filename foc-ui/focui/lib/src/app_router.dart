@@ -3,7 +3,7 @@ import 'package:focui/main.dart';
 import 'package:focui/src/auth/login_page.dart';
 import 'package:focui/src/entities/meta_feature/meta_entity_list_view.dart';
 import 'package:focui/src/menu/menu_view.dart';
-import 'package:focui/src/services/auth_service.dart';
+import 'package:focui/src/auth/auth_service.dart';
 import 'package:go_router/go_router.dart';
 
 GoRouter appRouter = GoRouter(

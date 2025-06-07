@@ -15,16 +15,16 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   http: ^1.2.0
-  flutter_form_builder: ^9.0.0
-  get_it: ^7.6.7 # Or the latest version
-  go_router: ^13.2.0 # Or the latest version (a good routing package)
+  flutter_form_builder: ^10.0.1
+  get_it: ^8.0.3 # Or the latest version
+  go_router: ^15.0.0 # Or the latest version (a good routing package)
   shared_preferences: ^2.2.2 # Or the latest version (for simulating auth state)  
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  flutter_lints: ^2.0.0
+  flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: true

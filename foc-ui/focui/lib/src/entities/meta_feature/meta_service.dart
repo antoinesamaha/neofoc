@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:focui/main.dart';
 import 'package:focui/src/app_constants.dart';
+import 'package:focui/src/auth/auth_service.dart';
 import 'package:http/http.dart' as http;
 
 import 'meta_entity.dart';
@@ -17,9 +19,21 @@ class MetaService {
   static const String url = '${AppConstants.apiUrl}/meta/entities';
   Map<String, MetaEntity>? _entities;
 
+  // Helper to get headers with Authorization
+  Map<String, String> _headers({bool isJson = false}) {
+    final authService = getIt<AuthService>();
+    final headers = <String, String>{
+      'Authorization': 'Bearer ${authService.accessToken}',
+    };
+    if (isJson) {
+      headers['Content-Type'] = 'application/json';
+    }
+    return headers;
+  }
+
   Future<Map<String, MetaEntity>> fetchItems() async {
     try {
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(Uri.parse(url), headers: _headers());
 
       if (response.statusCode == 200) {
         Map<String, dynamic> jsonResponse = json.decode(response.body);
@@ -42,7 +56,8 @@ class MetaService {
 
   MetaEntity? getEntityByName(String name) {
     if (_entities == null) {
-      throw Exception('Entities not loaded');
+      MetaService().fetchItems();
+      //throw Exception('Entities not loaded');
     }
     return _entities![name];
   }

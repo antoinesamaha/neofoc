@@ -1,16 +1,33 @@
 import 'dart:convert';
+import 'package:focui/main.dart';
 import 'package:focui/src/app_constants.dart';
 import 'package:http/http.dart' as http;
 
 import '../meta_feature/meta_entity.dart';
 import 'foc_entity.dart';
+import '../../auth/auth_service.dart'; // Import AuthService
 
 class FocService {
   static const String url = '${AppConstants.apiUrl}/foc/obj/';
 
+  // Helper to get headers with Authorization
+  Map<String, String> _headers({bool isJson = false}) {
+    final authService = getIt<AuthService>();
+    final headers = <String, String>{
+      'Authorization': 'Bearer ${authService.accessToken}',
+    };
+    if (isJson) {
+      headers['Content-Type'] = 'application/json';
+    }
+    return headers;
+  }
+
   Future<List<FocEntity>> fetchItems(MetaEntity metaEntity) async {
     String fullUrl = '$url${metaEntity.storageName}';
-    final response = await http.get(Uri.parse(fullUrl));
+    final response = await http.get(
+      Uri.parse(fullUrl),
+      headers: _headers(),
+    );
 
     if (response.statusCode == 200) {
       Map<String, dynamic> jsonResponse = json.decode(response.body);
@@ -21,9 +38,13 @@ class FocService {
     }
   }
 
-  Future<FocEntity> fetchItemDetails(MetaEntity metaEntity, String itemId) async {
+  Future<FocEntity> fetchItemDetails(
+      MetaEntity metaEntity, String itemId) async {
     String fullUrl = '$url${metaEntity.storageName}/$itemId';
-    final response = await http.get(Uri.parse(fullUrl));
+    final response = await http.get(
+      Uri.parse(fullUrl),
+      headers: _headers(),
+    );
 
     if (response.statusCode == 200) {
       Map<String, dynamic> jsonResponse = json.decode(response.body);
@@ -37,7 +58,7 @@ class FocService {
     String fullUrl = '$url${metaEntity.storageName}/${focEntity.id}';
     final response = await http.put(
       Uri.parse(fullUrl),
-      headers: {'Content-Type': 'application/json'},
+      headers: _headers(isJson: true),
       body: json.encode(focEntity.toJson()),
     );
 
@@ -50,7 +71,7 @@ class FocService {
     String fullUrl = '$url${metaEntity.storageName}';
     final response = await http.post(
       Uri.parse(fullUrl),
-      headers: {'Content-Type': 'application/json'},
+      headers: _headers(isJson: true),
       body: json.encode(focEntity.toJson()),
     );
 

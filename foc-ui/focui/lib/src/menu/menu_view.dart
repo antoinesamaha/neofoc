@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:focui/src/entities/foc_entity_feature/foc_list_view.dart';
+import 'package:focui/src/entities/meta_feature/meta_entity.dart';
+import 'package:focui/src/entities/meta_feature/meta_service.dart';
 import 'package:focui/src/settings/config.dart';
 import 'package:go_router/go_router.dart';
 
@@ -47,21 +50,49 @@ class MenuView extends StatelessWidget {
           final item = items[index];
 
           return ListTile(
-              title: Text(item.displayName),
-              leading: const CircleAvatar(
-                // Display the Flutter Logo image asset.
-                foregroundImage: AssetImage('assets/images/flutter_logo.png'),
-              ),
-              onTap: () {
-                // Navigate to the details page. If the user leaves and returns to
-                // the app after it has been killed while running in the
-                // background, the navigation stack is restored.
-                GoRouter.of(context).goNamed('entities');
+            leading: CircleAvatar(
+              // Display the Flutter Logo image asset.
+              foregroundImage: AssetImage(item.icon),
+            ),
+            title: Text(item.displayName),
+            onTap: () {
+              // Navigate to the details page. If the user leaves and returns to
+              // the app after it has been killed while running in the
+              // background, the navigation stack is restored.
+
+              MetaEntity? metaEntity =
+                  MetaService().getEntityByName(item.entityName);
+
+              if (metaEntity != null) {
+                // If the entity is not null, use it to create a FocListView
+                FocListView(
+                  metaEntity: metaEntity,
+                );
+
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => FocListView(metaEntity: metaEntity),
+                  ),
+                );
                 // Navigator.restorablePushNamed(
-                //   context,
-                //   item.entityPath,
-                // );
-              });
+              } else {
+                // If the entity is null, Go to the menu path
+                Navigator.restorablePushNamed(
+                  context,
+                  item.entityPath,
+                );
+              }
+            },
+          );
+
+          // Navigate to the details page. If the user leaves and returns to
+          // the app after it has been killed while running in the
+          // background, the navigation stack is restored.
+          //GoRouter.of(context).goNamed('entities');
+          // Navigator.restorablePushNamed(
+          //   context,
+          //   item.entityPath,
+          // );
         },
       ),
     );
