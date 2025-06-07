@@ -32,6 +32,7 @@ import com.foc.util.Utils;
 
 @RestController
 @RequestMapping("foc")
+@CrossOrigin(origins = "*")
 public class FocController {
 
     @Autowired
