@@ -4,7 +4,8 @@ class FocEntity {
   FocEntity(this.properties);
 
   factory FocEntity.fromJson(Map<String, dynamic> json) {
-    return FocEntity(json);
+    //We clone the properties to avoid modifying the original map
+    return FocEntity(Map<String, dynamic>.from(json));
   }
 
   dynamic get id {
@@ -13,6 +14,10 @@ class FocEntity {
       return int.tryParse(idValue);
     }
     return idValue;
+  }
+
+  set id(dynamic value) {
+    properties['id'] = value;
   }
 
   dynamic operator [](String key) {

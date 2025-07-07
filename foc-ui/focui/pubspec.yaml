@@ -19,6 +19,8 @@ dependencies:
   get_it: ^8.0.3 # Or the latest version
   go_router: ^15.0.0 # Or the latest version (a good routing package)
   shared_preferences: ^2.2.2 # Or the latest version (for simulating auth state)  
+  form_builder_validators: ^11.1.2  # Extra validators
+  json_annotation: ^4.8.1  # For custom JSON parsing (optional)  
 
 dev_dependencies:
   flutter_test:
@@ -34,4 +36,10 @@ flutter:
 
   assets:
     # Add assets from the images directory to the application.
+    - assets/
     - assets/images/
+    - assets/forms/
+    - assets/forms/sample_form.json
+    - assets/forms/test_group_form.json
+    - assets/forms/instrument_form.json
+
