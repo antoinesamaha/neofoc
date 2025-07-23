@@ -1,7 +1,6 @@
 // lib/routing/app_router.dart
 import 'package:focui/main.dart';
 import 'package:focui/src/auth/login_page.dart';
-import 'package:focui/src/components/json_form_builder_example.dart';
 import 'package:focui/src/entities/meta_feature/meta_entity_list_view.dart';
 import 'package:focui/src/menu/menu_view.dart';
 import 'package:focui/src/auth/auth_service.dart';
@@ -43,11 +42,6 @@ GoRouter appRouter = GoRouter(
       path: '/entities',
       name: 'entities',
       builder: (context, state) => const MetaEntityListView(),
-    ),
-    GoRoute(
-      path: '/samplejson',
-      name: 'samplejson',
-      builder: (context, state) => const JsonFormBuilderExample(),
     ),
   ],
 );

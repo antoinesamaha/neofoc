@@ -20,7 +20,7 @@ class MenuView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Entities Menu'),
+        //title: const Text('Entities Menu'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -50,10 +50,11 @@ class MenuView extends StatelessWidget {
           final item = items[index];
 
           return ListTile(
-            leading: CircleAvatar(
-              // Display the Flutter Logo image asset.
-              foregroundImage: AssetImage(item.icon),
-            ),
+            leading: item.iconData != null
+                ? Icon(item.iconData)
+                : CircleAvatar(
+                    foregroundImage: AssetImage(item.iconImageFile),
+                  ),
             title: Text(item.displayName),
             onTap: () {
               // Navigate to the details page. If the user leaves and returns to

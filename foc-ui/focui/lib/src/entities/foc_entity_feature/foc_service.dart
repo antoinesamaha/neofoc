@@ -32,7 +32,7 @@ class FocService {
     if (response.statusCode == 200) {
       Map<String, dynamic> jsonResponse = json.decode(response.body);
       List<dynamic> data = jsonResponse['data'];
-      return data.map((item) => FocEntity.fromJson(item)).toList();
+      return data.map((item) => FocEntity.fromJson(metaEntity, item)).toList();
     } else {
       throw Exception('Failed to load items');
     }
@@ -48,7 +48,7 @@ class FocService {
 
     if (response.statusCode == 200) {
       Map<String, dynamic> jsonResponse = json.decode(response.body);
-      return FocEntity.fromJson(jsonResponse);
+      return FocEntity.fromJson(metaEntity, jsonResponse);
     } else {
       throw Exception('Failed to load item details');
     }
@@ -77,6 +77,18 @@ class FocService {
 
     if (response.statusCode != 201) {
       throw Exception('Failed to insert item');
+    }
+  }
+
+  Future<void> deleteItem(MetaEntity metaEntity, int itemId) async {
+    String fullUrl = '$url${metaEntity.storageName}/$itemId';
+    final response = await http.delete(
+      Uri.parse(fullUrl),
+      headers: _headers(),
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception('Failed to delete item');
     }
   }
 }

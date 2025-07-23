@@ -5,6 +5,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import com.foc.list.FocLinkSimple;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -274,7 +275,13 @@ public class FocController {
     public FocList newFocList(FocRestAPICall request, boolean loaded) {
         FocDesc focDesc = request != null ? request.getFocDesc() : null;
         FocList list = focDesc != null ? focDesc.getFocList() : null;
-        if (loaded) {
+        if (list == null) {
+            list = new FocList(new FocLinkSimple(focDesc));
+            if(request.getRef() > 0){
+                applyRefFilterIfNeeded(request, list);
+            }
+        }
+        if (loaded && list != null) {
             // If refresh cached list is functional on the foc level then here we do not
             // need to do it
 //			if(false && !ConfigInfo.isRefreshCachedLists() && System.currentTimeMillis() - lastLoadTime > EXPIRY_TIME) {
@@ -294,25 +301,28 @@ public class FocController {
         }
     }
 
-    public void applyRefFilterIfNeeded(HttpServletRequest request, FocList list) {
+    public void applyRefFilterIfNeeded(FocRestAPICall request, FocList list) {
         if (list != null && request != null) {
-            long filter_Ref = doGet_GetReference(request, list);
-            if (filter_Ref > 0 && list.getFilter() != null)
-                list.getFilter().putAdditionalWhere("REF", "\"REF\"=" + filter_Ref);
+            long filter_Ref = doGet_GetReference(request.getRequest(), list);
+            if (filter_Ref > 0 && list.getFilter() != null) {
+                String idDBName = list.getFocDesc().getIdentifierField().getDBName();
+                list.getFilter().putAdditionalWhere("REF", "\""+idDBName+"\"=" + filter_Ref);
+            }
         }
     }
 
     protected long doPost_GetReference(JSONObject jsonObj, FocList list) {
         int ref = 0;
-        if (jsonObj != null && jsonObj.has("REF")) {
+        String idDBName = list.getFocDesc().getIdentifierField().getDBName();
+        if (jsonObj != null && jsonObj.has(idDBName)) {
             try {
-                ref = jsonObj.getInt("REF");
+                ref = jsonObj.getInt(idDBName);
             } catch (Exception e) {
 //                Globals.logException(e);
             }
             if (ref == 0) {
                 try {
-                    String strValue = jsonObj.getString("REF");
+                    String strValue = jsonObj.getString(idDBName);
                     if (!strValue.equalsIgnoreCase("null")) {
                         ref = Utils.parseInteger(strValue, 0);
                     }
@@ -325,11 +335,12 @@ public class FocController {
     }
 
     protected long doGet_GetReference(HttpServletRequest request, FocList list) {
-        return getFilterRef(request);
+        return getFilterRef(request, list);
     }
 
-    public long getFilterRef(HttpServletRequest request) {
-        String refStr = request != null ? request.getParameter("REF") : null;
+    public long getFilterRef(HttpServletRequest request, FocList list) {
+        String idDBName = list.getFocDesc().getIdentifierField().getDBName();
+        String refStr = request != null ? request.getParameter(idDBName) : null;
         long ref = refStr != null ? Utils.parseLong(refStr, 0) : 0;
         return ref;
     }
@@ -726,7 +737,10 @@ public class FocController {
     @DeleteMapping("obj/**")
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        FocDesc focDesc = getFocDescFromPath(request);
+        PathDetails reqParams = getPathDetails(request);
+        FocDesc focDesc = reqParams.getFocDesc();
+
+//        FocDesc focDesc = getFocDescFromPath(request);
         Globals.logString(" => DELETE Begin " + focDesc.getName());
 
         int returnedStatus = HttpServletResponse.SC_NOT_IMPLEMENTED;
@@ -745,9 +759,12 @@ public class FocController {
             setCORS(response);
             response.getWriter().println(userJson);
         } else {
-            FocList list = focDesc.getFocList(FocList.LOAD_IF_NEEDED);
+//            FocList list = focDesc.getFocList(FocList.LOAD_IF_NEEDED);
+            FocList list = newFocList(focRequest, true);
 
-            long ref = doGet_GetReference(request, list);
+//            long ref = doGet_GetReference(request, list);
+            long ref = reqParams.getId();
+
             FocObject focObj = null;
             if (ref > 0) {
                 focObj = list.searchByRealReferenceOnly(ref);

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
-import 'package:focui/src/entities/meta_feature/meta_service.dart';
+import 'package:focui/src/entities/foc_entity_feature/foc_details_view.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
@@ -11,7 +11,8 @@ import '../entities/meta_feature/meta_entity.dart';
 /// A widget that parses JSON layout definitions and renders FlutterFormBuilder forms
 class JsonFormBuilder extends StatefulWidget {
   final MetaEntity? metaEntity;
-  final FocEntity? focEntity;
+  final FocEntity? focEntity; // Either Have focEntity
+  final List<FocEntity>? focEntityList; // Either Have focEntityList
 
   /// The JSON form configuration as a Map
   final Map<String, dynamic>? formData;
@@ -44,6 +45,7 @@ class JsonFormBuilder extends StatefulWidget {
     super.key,
     this.metaEntity,
     this.focEntity,
+    this.focEntityList,
     this.formData,
     this.jsonString,
     this.assetPath,
@@ -341,6 +343,10 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           validator: FormBuilderValidators.compose(validators),
           maxLines: fieldData['maxLines'] as int?,
           keyboardType: _getKeyboardType(fieldData['keyboardType'] as String?),
+          valueTransformer: (value) {
+            if (value == null) return null;
+            return value.toString();
+          },
         );
 
       case 'number':
@@ -556,41 +562,85 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           style: _getTextStyle(fieldData['style'] as Map<String, dynamic>?),
         );
 
-      case 'section':
-        return _buildFormFields(fieldData);
-/*
-        final sectionTitle = fieldData['title'] as String?;
-        final sectionFields = fieldData['fields'] as List<dynamic>? ?? [];
-        final spacing = (fieldData['spacing'] as num?)?.toDouble() ?? 16.0;
+      case 'data_table':
+        final columnsData = fieldData['columns'] as List<dynamic>? ?? [];
+        final rowsData =
+            fieldData['rows'] as List<dynamic>? ?? widget.focEntityList;
 
-        List<Widget> sectionWidgets = [];
+        final columns = [
+          ...columnsData.map<DataColumn>((col) => DataColumn(
+                label: Text(col['label']?.toString() ?? ''),
+                numeric: col['numeric'] == true,
+              )),
+          const DataColumn(
+            label: Text('Actions'),
+          ),
+        ];
 
-        if (sectionTitle != null) {
-          sectionWidgets.add(
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Text(
-                sectionTitle,
-                style: Theme.of(context).textTheme.titleMedium,
+        final rows = rowsData!.map<DataRow>((row) {
+          final cells = [
+            ...columnsData.map((col) {
+              final key = col['key']?.toString() ?? '';
+              return DataCell(col['checkbox'] == true
+                  ? Icon(
+                      row[key] ? Icons.check_circle : Icons.cancel,
+                      color: row[key] ? Colors.green : Colors.red,
+                    )
+                  : Text(row[key]?.toString() ?? ''));
+            }),
+            DataCell(Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.open_in_new),
+                  tooltip: 'Open',
+                  onPressed: () {
+                    _editFocEntity(row);
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  tooltip: 'Delete',
+                  onPressed: () {
+                    _deleteFocEntity(row);
+                  },
+                ),
+              ],
+            )),
+          ];
+          return DataRow(cells: cells);
+        }).toList();
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade400, width: 1.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 700),
+                child: DataTable(
+                  columns: columns,
+                  rows: rows,
+                  headingRowColor: MaterialStateProperty.resolveWith<Color?>(
+                      (states) => Colors.blueGrey.shade700),
+                  headingTextStyle: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    letterSpacing: 1.1,
+                  ),
+                ),
               ),
             ),
-          );
-        }
-
-        for (var sectionFieldData in sectionFields) {
-          if (sectionFieldData is Map<String, dynamic>) {
-            final widget = _buildFormField(sectionFieldData);
-            if (widget != null) {
-              sectionWidgets.add(widget);
-            }
-          }
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: sectionWidgets,
+          ),
         );
-*/
+
+      case 'section':
+        return _buildFormFields(fieldData);
+
       default:
         if (widget.enableDebug) {
           debugPrint('Unknown field type: $type');
@@ -738,7 +788,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         if (widget.focEntity != null && widget.focEntity!.id != null) {
           updatedValues['id'] = widget.focEntity!.id;
         }
-        FocEntity newEntity = FocEntity(updatedValues);
+        FocEntity newEntity = FocEntity(metaEntity, updatedValues);
         //final entity = fromJson != null ? fromJson(values) : values;
 //        if (entity is FocEntity) {
         if (newEntity.id != null && newEntity.id > 0) {
@@ -779,5 +829,41 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   /// Get current form values
   Map<String, dynamic>? getCurrentValues() {
     return _formKey.currentState?.value;
+  }
+
+  void _editFocEntity(FocEntity item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FocDetailsView(
+            metaEntity: item.metaEntity, itemId: item.id.toString()),
+      ),
+    ).then((updatedItem) {
+      // if (updatedItem != null) {
+      //   setState(() {
+      //     futureItems = FocService().fetchItems(item.metaEntity);
+      //   });
+      // }
+    });
+  }
+
+  Future<void> _deleteFocEntity(FocEntity item) async {
+    try {
+      debugPrint("About to delete ${item.id}");
+      await FocService().deleteItem(item.metaEntity, item.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Item ${item.id} deleted successfully'),
+            backgroundColor: Colors.green),
+      );
+    } catch (e, stacktrace) {
+      debugPrint("Error deleting item: $e");
+      debugPrint("Stacktrace: $stacktrace");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Failed to delete item: $e'),
+            backgroundColor: Colors.red),
+      );
+    }
   }
 }

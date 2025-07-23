@@ -9,8 +9,8 @@ class Config {
   static IconData appIcon = Icons
       .construction; // Path to the application icon, to be set by the using package
   static List<Menu> menuItems = [
-    Menu("Countries", "/countries", "Country"),
-    Menu("Entities", "/entities", ""),
+    Menu(Icons.document_scanner, "Countries", "/countries", "Country"),
+    Menu(Icons.document_scanner, "Entities", "/entities", ""),
   ];
 
   static Map<String, WidgetBuilder> entityListViewRegistry = {

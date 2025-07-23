@@ -35,7 +35,8 @@ class _FocDetailsViewState extends State<FocDetailsView> {
   void _saveItem(FocEntity focEntity) async {
     if (_formKey.currentState?.saveAndValidate() ?? false) {
       final updatedData = _formKey.currentState?.value;
-      final updatedEntity = FocEntity.fromJson(updatedData!);
+      final updatedEntity =
+          FocEntity.fromJson(focEntity.metaEntity, updatedData!);
       try {
         if (updatedEntity.id != null && updatedEntity.id > 0) {
           await FocService().updateItem(widget.metaEntity, updatedEntity);
@@ -130,24 +131,10 @@ class _FocDetailsViewState extends State<FocDetailsView> {
         },
         autovalidateMode: AutovalidateMode.onUserInteraction,
       );
-      // } catch (e) {
-      //   // If not found, fallback to sample_form.json
-      //   try {
-      //     final jsonString =
-      //         await rootBundle.loadString('assets/forms/sample_form.json');
-      //     final formData = json.decode(jsonString);
-      //     return JsonFormBuilder(
-      //       formData: formData,
-      //       formKey: _formKey,
-      //       initialValues: focEntity.properties,
-      //       onChanged: (values) {},
-      //       autovalidateMode: AutovalidateMode.onUserInteraction,
-      //     );
     } catch (e) {
       // Fallback to the original form builder if no JSON form is available
       return entityFormColumnWithAllFields(focEntity);
     }
-    // }
   }
 
   Widget entityFormColumnWithAllFields(FocEntity focEntity) {

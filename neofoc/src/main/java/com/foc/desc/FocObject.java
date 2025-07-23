@@ -5431,12 +5431,10 @@ public abstract class FocObject extends AccessSubject implements FocListener, IF
 	public void jsonParseBoolean(JSONObject jsonObj, String fieldName) {
 		if (jsonObj.has(fieldName)) {
 			try {
-				String booleanString = jsonObj.getString(fieldName);
-				if (isNullAndAllowed(booleanString)) {
-					setPropertyNull_WithListener(fieldName);
-				} else {
-					setPropertyBoolean(fieldName, jsonObj.getBoolean(fieldName));
-				}
+                if(jsonObj.has(fieldName)) {
+                    boolean val = jsonObj.getBoolean(fieldName);
+                    setPropertyBoolean(fieldName, val);
+                }
 			} catch (JSONException e) {
 				Globals.logException(e);
 			}

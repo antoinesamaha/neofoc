@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Field;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Slf4j
@@ -56,6 +57,12 @@ public class ScanSpringBootEntitiesAndConvert2FocDesc {
             focDesc.setListInCache(cacheable);
             int fieldID = 1;
 
+            String idPrimaryKeyAttrinuteName = null;
+            if (type.hasSingleIdAttribute()) {
+                Attribute<?, ?> idAttr = type.getId(type.getIdType().getJavaType());
+                idPrimaryKeyAttrinuteName = idAttr.getName();
+            }
+
             Set<Attribute> attSet = type.getAttributes();
             Iterator<Attribute> attIter = attSet.iterator();
             while(attIter != null && attIter.hasNext()) {
@@ -69,14 +76,20 @@ public class ScanSpringBootEntitiesAndConvert2FocDesc {
 
                 Globals.logString("    ATTRIBUTE TYPE: " + att.getName()+" class: "+attributeClass.getName());
 
-                if (att.getName().toLowerCase().equals("id")) {
+                if (att.getName().toLowerCase().equals(idPrimaryKeyAttrinuteName)) {
                     FField fld = focDesc.addReferenceField();
-                    fld.setName("id");
+                    fld.setName(idPrimaryKeyAttrinuteName);
                 } else if (attributeClass == String.class) {
                     FStringField fld = new FStringField(fieldName, title, fieldID++, false, 1000);
                     focDesc.addField(fld);
                 } else if (attributeClass == Integer.class) {
                     FIntField fld = new FIntField(fieldName, title, fieldID++, false, 10);
+                    focDesc.addField(fld);
+                } else if (attributeClass == Double.class) {
+                    FNumField fld = new FNumField(fieldName, title, fieldID++, false, 20, 5);
+                    focDesc.addField(fld);
+                } else if (attributeClass == LocalDateTime.class) {
+                    FDateTimeField fld = new FDateTimeField(fieldName, title, fieldID++, false);
                     focDesc.addField(fld);
                 } else if (attributeClass == Boolean.class) {
                     FBoolField fld = new FBoolField(fieldName, title, fieldID++, false);
