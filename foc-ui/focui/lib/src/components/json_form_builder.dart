@@ -610,32 +610,71 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           return DataRow(cells: cells);
         }).toList();
 
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade400, width: 1.2),
-              borderRadius: BorderRadius.circular(10),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4A00E0),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 22, vertical: 14),
+                    textStyle: const TextStyle(fontSize: 16),
+                    elevation: 0,
+                  ),
+                  onPressed: () {
+                    // Open empty details view for new item
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FocDetailsView(
+                          metaEntity: widget.metaEntity!,
+                          itemId: null, // null means create new
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 700),
-                child: DataTable(
-                  columns: columns,
-                  rows: rows,
-                  headingRowColor: MaterialStateProperty.resolveWith<Color?>(
-                      (states) => Colors.blueGrey.shade700),
-                  headingTextStyle: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    letterSpacing: 1.1,
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade400, width: 1.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 700),
+                    child: DataTable(
+                      columns: columns,
+                      rows: rows,
+                      headingRowColor:
+                          MaterialStateProperty.resolveWith<Color?>(
+                              (states) => Colors.blueGrey.shade700),
+                      headingTextStyle: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+          ],
         );
 
       case 'section':
