@@ -52,7 +52,20 @@ public class ScanSpringBootEntitiesAndConvert2FocDesc {
 
             Globals.logString(" ENTITY TYPE " + type.getName());
 
-            FocDesc focDesc = new FocDesc(FocObjectGeneral.class, FocDesc.DB_RESIDENT, tableName, false);
+            // Try to find a class named "Foc" + type.getName() in any package
+            Class focClass = FocObjectGeneral.class;
+            String focSimpleName = "Foc" + type.getName();
+            try {
+                Class foundFocClass = findClassBySimpleName(focSimpleName);
+                if (foundFocClass != null) {
+                    focClass = foundFocClass;
+                    Globals.logString("Found Foc class: " + focClass.getName());
+                }
+            } catch (Exception e) {
+                Globals.logException(e);
+            }
+
+            FocDesc focDesc = new FocDesc(focClass, FocDesc.DB_RESIDENT, tableName, false);
             focDesc.setModule(focModule);
             focDesc.setListInCache(cacheable);
             int fieldID = 1;
@@ -196,6 +209,28 @@ public class ScanSpringBootEntitiesAndConvert2FocDesc {
     private boolean getOneToManyAnnotation(EntityType<?> entityType) {
         Class<?> entityClass = entityType.getJavaType();
         return entityClass.isAnnotationPresent(Cacheable.class);
+    }
+
+    /**
+     * Searches the classpath for a class with the given simple name (e.g. "FocMyEntity").
+     * Returns the Class object if found, or null if not found.
+     *
+     * This implementation uses the Reflections library for classpath scanning.
+     */
+    private Class<?> findClassBySimpleName(String simpleName) {
+        try {
+            // You must add Reflections to your dependencies:
+            org.reflections.Reflections reflections = new org.reflections.Reflections("");
+            Set<Class<? extends FocObjectGeneral>> allClasses = reflections.getSubTypesOf(FocObjectGeneral.class);
+            for (Class<?> clazz : allClasses) {
+                if (clazz.getSimpleName().equals(simpleName)) {
+                    return clazz;
+                }
+            }
+        } catch (Exception e) {
+            Globals.logException(e);
+        }
+        return null;
     }
 
     @Data
