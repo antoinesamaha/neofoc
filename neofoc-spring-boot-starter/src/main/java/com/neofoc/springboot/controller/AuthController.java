@@ -6,9 +6,11 @@ import com.foc.rest.LoginResponseDTO;
 import com.neofoc.springboot.model.dto.LoginRequestDTO;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 
@@ -17,8 +19,14 @@ import java.io.IOException;
 @CrossOrigin(origins = "*")
 public class AuthController {
 
+    private final ObjectMapper objectMapper;
+
+    public AuthController(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
     @PostMapping("login")
-    protected ResponseEntity<LoginResponseDTO> doPost(HttpServletRequest request, HttpServletResponse response, @RequestBody LoginRequestDTO loginRequestDTO)
+    protected ResponseEntity<LoginResponseDTO> doPost(HttpServletRequest request, @RequestBody LoginRequestDTO loginRequestDTO)
             throws ServletException, IOException {
 
         FocLoginAccess loginAccess = new FocLoginAccess();
@@ -32,14 +40,18 @@ public class AuthController {
 
             FocSimpleTokenAuth jwt = new FocSimpleTokenAuth();
             String token = jwt.generateToken(user.getName());
-            loginResponseDTO.setAccess_token(token);
+            loginResponseDTO.setAccessToken(token);
+//            loginResponseDTO.setAccess_token(token);
 
-            response.setStatus(javax.servlet.http.HttpServletResponse.SC_OK);
-        }else{
-            response.setStatus(javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST);
+            // Debug: Log the response body as JSON string
+            String jsonBody = objectMapper.writeValueAsString(loginResponseDTO);
+            System.out.println("Response body JSON: " + jsonBody);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(loginResponseDTO);
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(loginResponseDTO);
         }
-
-        return ResponseEntity.ok(loginResponseDTO);
     }
-
 }

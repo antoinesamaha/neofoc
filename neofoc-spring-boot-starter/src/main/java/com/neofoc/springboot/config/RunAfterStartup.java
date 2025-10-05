@@ -3,6 +3,7 @@ package com.neofoc.springboot.config;
 import com.neofoc.springboot.service.ScanSpringBootEntitiesAndConvert2FocDesc;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import com.foc.Globals;
@@ -17,6 +18,7 @@ public class RunAfterStartup {
     }
 
     @EventListener(ApplicationReadyEvent.class)
+	@Order(1)
 	public void runAfterStartup() {
 		initApplication();
 		scanSpringBootEntitiesAndConvert2FocDesc.scanEntitiesAndCreateFocDesc();

@@ -93,6 +93,11 @@ public class FocLinkForeignKey extends FocLink {
           //Getting the foreign Key Field name
           String foreignKeyName = null;
           FField foreignField = getSlaveDesc().getFieldByID(foreignKeyFieldID);
+          //For debug only
+          if (foreignField == null) {
+            foreignField = getSlaveDesc().getFieldByID(foreignKeyFieldID);
+          }
+          // -------------
           if(FObjectField.class.isInstance(foreignField)){
             foreignKeyName = ((FObjectField)foreignField).getDBName();
           }else{

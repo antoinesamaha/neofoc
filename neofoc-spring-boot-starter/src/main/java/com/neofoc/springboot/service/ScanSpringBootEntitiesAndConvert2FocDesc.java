@@ -128,7 +128,8 @@ public class ScanSpringBootEntitiesAndConvert2FocDesc {
                                     relation.setCascadeTypes(cascadeTypes);
                                     relation.setMappedBy(mappedBy);
 
-                                    one2ManyRelationMap.put(elementTableName+"|"+mappedBy, relation);
+                                    String key = ASCII.convertJavaClassNameTo_SmallLettersWith_(mappedBy);
+                                    one2ManyRelationMap.put(elementTableName+"|"+key, relation);
                                 }
                             }
                         } catch (Exception e) {
@@ -219,14 +220,33 @@ public class ScanSpringBootEntitiesAndConvert2FocDesc {
      */
     private Class<?> findClassBySimpleName(String simpleName) {
         try {
-            // You must add Reflections to your dependencies:
-            org.reflections.Reflections reflections = new org.reflections.Reflections("");
-            Set<Class<? extends FocObjectGeneral>> allClasses = reflections.getSubTypesOf(FocObjectGeneral.class);
-            for (Class<?> clazz : allClasses) {
+            // Create a Reflections instance that scans all your application packages
+            // You should replace "com.neofoc" with your base package name
+            org.reflections.Reflections reflections = new org.reflections.Reflections("com.neofoc");
+
+            // Get classes that extend FocObjectGeneral
+            Set<Class<? extends FocObjectGeneral>> focGeneralClasses = reflections.getSubTypesOf(FocObjectGeneral.class);
+            for (Class<?> clazz : focGeneralClasses) {
                 if (clazz.getSimpleName().equals(simpleName)) {
                     return clazz;
                 }
             }
+
+            // Additionally check for classes that extend FocObject (assuming it exists)
+            try {
+                Class<?> focObjectClass = Class.forName("com.foc.desc.FocObject");
+                @SuppressWarnings("unchecked")
+                Set<Class<?>> focObjectClasses = reflections.getSubTypesOf(
+                        (Class<Object>) focObjectClass);
+                for (Class<?> clazz : focObjectClasses) {
+                    if (clazz.getSimpleName().equals(simpleName)) {
+                        return clazz;
+                    }
+                }
+            } catch (ClassNotFoundException e) {
+                // FocObject class doesn't exist, just continue
+            }
+
         } catch (Exception e) {
             Globals.logException(e);
         }
