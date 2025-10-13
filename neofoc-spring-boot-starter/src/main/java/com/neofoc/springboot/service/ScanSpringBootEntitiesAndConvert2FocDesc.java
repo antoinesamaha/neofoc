@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Field;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -103,6 +104,9 @@ public class ScanSpringBootEntitiesAndConvert2FocDesc {
                     focDesc.addField(fld);
                 } else if (attributeClass == LocalDateTime.class) {
                     FDateTimeField fld = new FDateTimeField(fieldName, title, fieldID++, false);
+                    focDesc.addField(fld);
+                } else if (attributeClass == LocalDate.class) {
+                    FDateField fld = new FDateField(fieldName, title, fieldID++, false);
                     focDesc.addField(fld);
                 } else if (attributeClass == Boolean.class) {
                     FBoolField fld = new FBoolField(fieldName, title, fieldID++, false);

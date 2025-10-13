@@ -18,10 +18,10 @@ class FocListView extends StatefulWidget {
   static const routeName = '/entity';
 
   @override
-  _FocListViewState createState() => _FocListViewState();
+  FocListViewState createState() => FocListViewState();
 }
 
-class _FocListViewState extends State<FocListView> {
+class FocListViewState extends JsonFormState<FocListView> {
   final _formKey = GlobalKey<FormBuilderState>();
   late Future<List<FocEntity>> futureItems;
 
@@ -31,7 +31,7 @@ class _FocListViewState extends State<FocListView> {
     futureItems = FocService().fetchItems(widget.metaEntity);
   }
 
-  void _editItem(FocEntity item) {
+  void editItem(FocEntity item) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -47,7 +47,7 @@ class _FocListViewState extends State<FocListView> {
     });
   }
 
-  void _deleteItem(FocEntity item) {
+  void deleteItem(FocEntity item) {
     // Implement delete functionality here
     print('Delete item: ${item}');
   }
@@ -125,6 +125,7 @@ class _FocListViewState extends State<FocListView> {
           // Handle form changes if needed
         },
         autovalidateMode: AutovalidateMode.onUserInteraction,
+        state: this,
       );
     } catch (e) {
       // Fallback to the original form builder if no JSON form is available
@@ -185,10 +186,11 @@ class _FocListViewState extends State<FocListView> {
                   borderRadius: BorderRadius.circular(18),
                   child: Builder(
                     builder: (context) {
+                      final displayFieldNames = getDisplayFieldNames();
                       final displayFields =
                           widget.metaEntity.fields.where((field) {
                         final lower = field.name.toLowerCase();
-                        return lower == 'code' || lower == 'name';
+                        return displayFieldNames.contains(lower);
                       }).toList();
                       return DataTable(
                         headingRowColor:
@@ -225,9 +227,10 @@ class _FocListViewState extends State<FocListView> {
                             return DataColumn(
                                 label: Text(_capitalize(field.name)));
                           }).toList(),
+                          ...getCustomColumns(),
                           const DataColumn(label: Text('Actions')),
                         ],
-                        rows: focEntityList!.asMap().entries.map((entry) {
+                        rows: focEntityList.asMap().entries.map((entry) {
                           final index = entry.key;
                           final item = entry.value;
                           return DataRow(
@@ -246,18 +249,19 @@ class _FocListViewState extends State<FocListView> {
                                 return DataCell(
                                     Text(item[field.dbName]?.toString() ?? ''));
                               }).toList(),
+                              ...getCustomDataCells(item),
                               DataCell(Row(children: [
                                 IconButton(
                                   icon: const Icon(Icons.edit),
                                   tooltip: 'Edit',
                                   color: const Color(0xFF4A00E0),
-                                  onPressed: () => _editItem(item),
+                                  onPressed: () => editItem(item),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete),
                                   tooltip: 'Delete',
                                   color: Colors.redAccent,
-                                  onPressed: () => _deleteItem(item),
+                                  onPressed: () => deleteItem(item),
                                 ),
                               ])),
                             ],
@@ -274,5 +278,26 @@ class _FocListViewState extends State<FocListView> {
         },
       ),
     );
+  }
+
+  /// Override this method in subclasses to add custom column headers
+  /// Returns a list of DataColumn widgets that will be inserted before the Actions column
+  @override
+  List<DataColumn> getCustomColumns() {
+    return [];
+  }
+
+  /// Override this method in subclasses to add custom data cells for each row
+  /// Returns a list of DataCell widgets that will be inserted before the Actions column
+  /// The item is passed as parameter to allow cell content based on the row data
+  @override
+  List<DataCell> getCustomDataCells(dynamic item) {
+    return [];
+  }
+
+  /// Override this method in subclasses to customize which fields are displayed
+  /// By default shows 'code' and 'name' fields
+  List<String> getDisplayFieldNames() {
+    return ['code', 'name'];
   }
 }

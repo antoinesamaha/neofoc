@@ -41,21 +41,24 @@ class JsonFormBuilder extends StatefulWidget {
   /// Whether to show debug information
   final bool enableDebug;
 
-  const JsonFormBuilder({
-    super.key,
-    this.metaEntity,
-    this.focEntity,
-    this.focEntityList,
-    this.formData,
-    this.jsonString,
-    this.assetPath,
-    this.initialValues,
-    this.onChanged,
-    this.onSaved,
-    this.autovalidateMode = AutovalidateMode.disabled,
-    this.formKey,
-    this.enableDebug = false,
-  }) : assert(
+  final JsonFormState state;
+
+  const JsonFormBuilder(
+      {super.key,
+      this.metaEntity,
+      this.focEntity,
+      this.focEntityList,
+      this.formData,
+      this.jsonString,
+      this.assetPath,
+      this.initialValues,
+      this.onChanged,
+      this.onSaved,
+      this.autovalidateMode = AutovalidateMode.disabled,
+      this.formKey,
+      this.enableDebug = false,
+      required this.state})
+      : assert(
           formData != null || jsonString != null || assetPath != null,
           'At least one of formData, jsonString, or assetPath must be provided',
         );
@@ -572,6 +575,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                 label: Text(col['label']?.toString() ?? ''),
                 numeric: col['numeric'] == true,
               )),
+          ...widget.state
+              .getCustomColumns(), // Add custom columns from subclass
           const DataColumn(
             label: Text('Actions'),
           ),
@@ -588,6 +593,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                     )
                   : Text(row[key]?.toString() ?? ''));
             }),
+            ...widget.state
+                .getCustomDataCells(row), // Add custom data cells from subclass
             DataCell(Row(
               children: [
                 IconButton(
@@ -904,5 +911,23 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
             backgroundColor: Colors.red),
       );
     }
+  }
+}
+
+abstract class JsonFormState<T extends StatefulWidget> extends State<T> {
+  @override
+  Widget build(BuildContext context);
+
+  /// Override this method to add custom column headers
+  /// Returns a list of DataColumn widgets that will be inserted before the Actions column
+  List<DataColumn> getCustomColumns() {
+    return [];
+  }
+
+  /// Override this method to add custom data cells for each row
+  /// Returns a list of DataCell widgets that will be inserted before the Actions column
+  /// The dynamic item is passed as parameter to allow cell content based on the row data
+  List<DataCell> getCustomDataCells(dynamic item) {
+    return [];
   }
 }

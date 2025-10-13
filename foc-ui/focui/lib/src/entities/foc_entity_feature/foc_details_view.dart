@@ -21,7 +21,7 @@ class FocDetailsView extends StatefulWidget {
   _FocDetailsViewState createState() => _FocDetailsViewState();
 }
 
-class _FocDetailsViewState extends State<FocDetailsView> {
+class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
   final _formKey = GlobalKey<FormBuilderState>();
   late Future<FocEntity> futureItem;
 
@@ -130,6 +130,7 @@ class _FocDetailsViewState extends State<FocDetailsView> {
           // Handle form changes if needed
         },
         autovalidateMode: AutovalidateMode.onUserInteraction,
+        state: this,
       );
     } catch (e) {
       // Fallback to the original form builder if no JSON form is available

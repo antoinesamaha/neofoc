@@ -1,7 +1,9 @@
 package com.foc.annotations.processors;
 
 import com.foc.annotations.model.FocData;
+import com.foc.annotations.processors.attributes.FocDataAttributeProcessorFactory;
 import com.google.auto.service.AutoService;
+import lombok.Getter;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -30,10 +32,6 @@ import java.util.Set;
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class FocDataProcessor extends AbstractProcessor {
 
-    private enum AccessorType {
-        GETTER, SETTER, TYPE
-    }
-
     private Types typeUtils;
     private Elements elementUtils;
     private Filer filer;
@@ -41,10 +39,14 @@ public class FocDataProcessor extends AbstractProcessor {
 
     private Map<String, TypeElement> allProcessedTypes = null;
 
+    public Map<String, TypeElement> getAllProcessedTypes() {
+        return allProcessedTypes;
+    }
+
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
-        System.out.println("FocDataProcessor initialized 123 ##################################################");
+        System.out.println("FocDataProcessor initialized ##################################################");
         typeUtils = processingEnv.getTypeUtils();
         elementUtils = processingEnv.getElementUtils();
         filer = processingEnv.getFiler();
@@ -116,187 +118,54 @@ public class FocDataProcessor extends AbstractProcessor {
             out.println("        super(constr);");
             out.println("    }");
             out.println();
+            out.println("    public " + generatedClassName + "() {");
+            out.println("        this(new FocConstructor(getFocDesc(), null));");
+            out.println("    }");
+            out.println();
 
             // Generate fields, getters, and setters for each field in the entity class
             for (Element enclosedElement : entityClass.getEnclosedElements()) {
                 if (enclosedElement.getKind() == ElementKind.FIELD) {
                     VariableElement field = (VariableElement) enclosedElement;
                     String fieldName = field.getSimpleName().toString();
-                    String capitalizedFieldName = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
-                    String camelCaseFieldName = toCamelCaseWithUnderscore(fieldName);
                     TypeMirror fieldType = field.asType();
                     String typeName = fieldType.toString();
 
-                    String typeForDeclaration = getterSetterMethods(typeName, fieldName, camelCaseFieldName, AccessorType.TYPE);
-
-                    // Getter
-                    String getterContent = getterSetterMethods(typeName, fieldName, camelCaseFieldName, AccessorType.GETTER);
-                    if (getterContent != null && !getterContent.isEmpty()) {
-                        out.println("    public " + typeForDeclaration + " get" + capitalizedFieldName + "() {");
-                        out.println("        " + getterContent);
-                        out.println("    }");
-                        out.println();
+                    IFocDataAttributeProcessor attributeProcessor = FocDataAttributeProcessorFactory.getProcessor(typeName);
+                    if (attributeProcessor == null) {
+                        attributeProcessor = FocDataAttributeProcessorFactory.getProcessor("Entity");
                     }
-
-                    // Setter
-                    String setterContent = getterSetterMethods(typeName, fieldName, camelCaseFieldName, AccessorType.SETTER);
-                    if (setterContent != null && !setterContent.isEmpty()) {
-                        out.println("    public void set" + capitalizedFieldName + "(" + typeForDeclaration + " value) {");
-                        out.println("        " + setterContent);
-                        out.println("    }");
-                        out.println();
+                    if (attributeProcessor != null) {
+                        String getterSetterSection = attributeProcessor.getGetterSetter(this, field);
+                        out.println(getterSetterSection);
                     }
                 }
             }
+
+            out.println();
+            out.println("    public static com.foc.desc.FocDesc getFocDesc() {");
+            out.println("        return com.foc.Globals.getApp().getFocDescByName(\""+getTableName(entityClass)+"\");");
+            out.println("    }");
+            out.println();
             out.println("}");
         }
+
     }
 
-    public String getterSetterMethods(String typeName, String fieldName, String fieldNameCamelCase, AccessorType accessorType) {
-        System.out.println("FocDataProcessor getterSetterMethods ##################################################");
-        if (typeName.equals("int") || typeName.equals("java.lang.Integer")) {
-            if (accessorType == AccessorType.SETTER) {
-                return "setPropertyInteger(\"" + fieldNameCamelCase + "\", value);";
-            } else if (accessorType == AccessorType.GETTER) {
-                return "return getPropertyInteger(\"" + fieldNameCamelCase + "\");";
-            } else {
-                return "int";
-            }
-        } else if (typeName.equals("long") || typeName.equals("java.lang.Long")) {
-            if (accessorType == AccessorType.SETTER) {
-                return "setPropertyLong(\"" + fieldNameCamelCase + "\", value);";
-            } else if (accessorType == AccessorType.GETTER) {
-                return "return getPropertyLong(\"" + fieldNameCamelCase + "\");";
-            } else {
-                return "long";
-            }
-        } else if (typeName.equals("double") || typeName.equals("java.lang.Double")) {
-            if (accessorType == AccessorType.SETTER) {
-                return "setPropertyDouble(\"" + fieldNameCamelCase + "\", value);";
-            } else if (accessorType == AccessorType.GETTER) {
-                return "return getPropertyDouble(\"" + fieldNameCamelCase + "\");";
-            } else {
-                return "double";
-            }
-        } else if (typeName.equals("float") || typeName.equals("java.lang.Float")) {
-            if (accessorType == AccessorType.SETTER) {
-                return "setPropertyFloat(\"" + fieldNameCamelCase + "\", value);";
-            } else if (accessorType == AccessorType.GETTER) {
-                return "return getPropertyFloat(\"" + fieldNameCamelCase + "\");";
-            } else {
-                return "float";
-            }
-        } else if (typeName.equals("boolean") || typeName.equals("java.lang.Boolean")) {
-            if (accessorType == AccessorType.SETTER) {
-                return "setPropertyBoolean(\"" + fieldNameCamelCase + "\", value);";
-            } else if (accessorType == AccessorType.GETTER) {
-                return "return getPropertyBoolean(\"" + fieldNameCamelCase + "\");";
-            } else {
-                return "boolean";
-            }
-        } else if (typeName.equals("java.lang.String")) {
-            if (accessorType == AccessorType.SETTER) {
-                return "setPropertyString(\"" + fieldNameCamelCase + "\", value);";
-            } else if (accessorType == AccessorType.GETTER) {
-                return "return getPropertyString(\"" + fieldNameCamelCase + "\");";
-            } else {
-                return "String";
-            }
-        } else if (typeName.equals("java.time.LocalDateTime")) {
-            if (accessorType == AccessorType.SETTER) {
-
-                String str = "java.sql.Date date = value != null ? java.sql.Date.valueOf(value.toLocalDate()) : null;\n";
-                str += "        setPropertyDate(\"" + fieldNameCamelCase + "\", date);";
-
-                return str;
-
-            } else if (accessorType == AccessorType.GETTER) {
-                String str = "java.sql.Date date = getPropertyDate(\"" + fieldNameCamelCase + "\");\n";
-                str += "        return date != null ? date.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() : null;";
-                return str;
-
-            } else {
-                return typeName;
-
-            }
-        } else {
-            System.out.println("FocDataProcessor In Else for typeName = " + typeName);
-
-            // Check if the typeName corresponds to a JPA entity
-            try {
-                // Get the simple name of the type (without package)
-                String simpleTypeName = typeName;
-                if (typeName.contains(".")) {
-                    simpleTypeName = typeName.substring(typeName.lastIndexOf('.') + 1);
-                }
-
-                // Look for a class with the prefix "Foc" + typeName
-                String focClassName = "Foc" + simpleTypeName;
-                TypeElement focTypeElement = null;
-
-                System.out.println("===== DEBUG FocDataProcessor =====");
-                System.out.println("Looking for class: " + focClassName);
-                System.out.println("Original type: " + typeName);
-
-                // First, check in collected types
-                focTypeElement = allProcessedTypes.get(focClassName);
-                System.out.println("Found in allProcessedTypes: " + (focTypeElement != null));
-
-                // If not found in collected types, search through all module elements
-                if (focTypeElement == null) {
-                    System.out.println("Searching for " + focClassName + " in all available classes");
-
-                    // Try to find it by iterating through all known types
-                    for (Map.Entry<String, TypeElement> entry : allProcessedTypes.entrySet()) {
-                        if (entry.getKey().equals(focClassName)) {
-                            focTypeElement = entry.getValue();
-                            System.out.println("Found " + focClassName + " in processed types: " + focTypeElement.getQualifiedName());
-                            break;
-                        }
-                    }
-                }
-
-                System.out.println("FocDataProcessor complete check for typeName = " + typeName +
-                                  ", found match: " + (focTypeElement != null));
-
-                if (focTypeElement != null) {
-                    String focTypeName = focTypeElement.getQualifiedName().toString();
-                    System.out.println("Using Foc type: " + focTypeName);
-
-                    // We found a corresponding Foc class
-                    if (accessorType == AccessorType.SETTER) {
-                        return "setPropertyObject(\"" + fieldNameCamelCase + "\", value);";
-                    } else if (accessorType == AccessorType.GETTER) {
-                        return "return (" + focTypeName + ") getPropertyObject(\"" + fieldNameCamelCase + "\");";
-                    } else {
-                        return focTypeName;
-                    }
-                } else {
-                    System.out.println("WARNING: Could not find Foc class for " + typeName);
-                }
-            } catch (Exception e) {
-                System.err.println("Failed to check for JPA entity: " + e.getMessage());
-                e.printStackTrace();
-                messager.printMessage(Diagnostic.Kind.NOTE,
-                        "Failed to check for JPA entity: " + e.getMessage());
-            }
+    private String getTableName(TypeElement entityClass) {
+        // Check for @Table annotation first (it has priority for table name)
+        jakarta.persistence.Table tableAnnotation = entityClass.getAnnotation(jakarta.persistence.Table.class);
+        if (tableAnnotation != null && !tableAnnotation.name().isEmpty()) {
+            return tableAnnotation.name();
         }
 
-        return "";
-    }
-
-    private String toCamelCaseWithUnderscore(String input) {
-        StringBuilder result = new StringBuilder();
-        for (int i = 0; i < input.length(); i++) {
-            char c = input.charAt(i);
-            if (Character.isUpperCase(c)) {
-                if (i > 0) result.append('_');
-                result.append(Character.toLowerCase(c));
-            } else {
-                result.append(c);
-            }
+        // Check for @Entity annotation
+        jakarta.persistence.Entity entityAnnotation = entityClass.getAnnotation(jakarta.persistence.Entity.class);
+        if (entityAnnotation != null && !entityAnnotation.name().isEmpty()) {
+            return entityAnnotation.name();
         }
-        return result.toString();
-    }
 
+        // Default to class name if no explicit name is provided
+        return entityClass.getSimpleName().toString();
+    }
 }

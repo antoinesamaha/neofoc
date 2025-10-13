@@ -11,7 +11,7 @@ class FocService {
   static const String url = '${AppConstants.apiUrl}/foc/obj/';
 
   // Helper to get headers with Authorization
-  Map<String, String> _headers({bool isJson = false}) {
+  Map<String, String> headers({bool isJson = false}) {
     final authService = getIt<AuthService>();
     final headers = <String, String>{
       'Authorization': 'Bearer ${authService.accessToken}',
@@ -26,7 +26,7 @@ class FocService {
     String fullUrl = '$url${metaEntity.storageName}';
     final response = await http.get(
       Uri.parse(fullUrl),
-      headers: _headers(),
+      headers: headers(),
     );
 
     if (response.statusCode == 200) {
@@ -43,7 +43,7 @@ class FocService {
     String fullUrl = '$url${metaEntity.storageName}/$itemId';
     final response = await http.get(
       Uri.parse(fullUrl),
-      headers: _headers(),
+      headers: headers(),
     );
 
     if (response.statusCode == 200) {
@@ -58,7 +58,7 @@ class FocService {
     String fullUrl = '$url${metaEntity.storageName}/${focEntity.id}';
     final response = await http.put(
       Uri.parse(fullUrl),
-      headers: _headers(isJson: true),
+      headers: headers(isJson: true),
       body: json.encode(focEntity.toJson()),
     );
 
@@ -71,7 +71,7 @@ class FocService {
     String fullUrl = '$url${metaEntity.storageName}';
     final response = await http.post(
       Uri.parse(fullUrl),
-      headers: _headers(isJson: true),
+      headers: headers(isJson: true),
       body: json.encode(focEntity.toJson()),
     );
 
@@ -84,7 +84,7 @@ class FocService {
     String fullUrl = '$url${metaEntity.storageName}/$itemId';
     final response = await http.delete(
       Uri.parse(fullUrl),
-      headers: _headers(),
+      headers: headers(),
     );
 
     if (response.statusCode != 200 && response.statusCode != 204) {

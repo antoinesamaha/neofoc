@@ -3,7 +3,6 @@ import 'package:focui/src/entities/foc_entity_feature/foc_list_view.dart';
 import 'package:focui/src/entities/meta_feature/meta_entity.dart';
 import 'package:focui/src/entities/meta_feature/meta_service.dart';
 import 'package:focui/src/settings/config.dart';
-import 'package:go_router/go_router.dart';
 
 import '../settings/settings_view.dart';
 import 'menu.dart';
@@ -14,7 +13,7 @@ class MenuView extends StatelessWidget {
 
   static const routeName = '/';
 
-  List<Menu> items = Config.menuItems;
+  final List<Menu> items = Config.menuItems;
 
   @override
   Widget build(BuildContext context) {
@@ -65,17 +64,29 @@ class MenuView extends StatelessWidget {
                   MetaService().getEntityByName(item.entityName);
 
               if (metaEntity != null) {
-                // If the entity is not null, use it to create a FocListView
-                FocListView(
-                  metaEntity: metaEntity,
-                );
+                // Determine which widget class to use
+                String widgetClassName = item.widgetClassName ?? 'FocListView';
 
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => FocListView(metaEntity: metaEntity),
-                  ),
-                );
-                // Navigator.restorablePushNamed(
+                // Get the widget factory from the registry
+                var widgetFactory = Config.widgetClassRegistry[widgetClassName];
+
+                if (widgetFactory != null) {
+                  // Create the widget using the factory function
+                  Widget targetWidget = widgetFactory(metaEntity);
+
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => targetWidget,
+                    ),
+                  );
+                } else {
+                  // Fallback to default FocListView if widget class not found
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => FocListView(metaEntity: metaEntity),
+                    ),
+                  );
+                }
               } else {
                 // If the entity is null, Go to the menu path
                 Navigator.restorablePushNamed(
