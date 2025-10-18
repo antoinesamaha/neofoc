@@ -2,8 +2,6 @@ package com.foc.annotations.processors.attributes;
 
 import com.foc.annotations.processors.FocDataAttributeAbstractProcessor;
 import com.foc.annotations.processors.FocDataProcessor;
-import com.foc.annotations.processors.FocDataProcessor2;
-import com.foc.annotations.processors.IFocDataAttributeProcessor;
 
 import javax.lang.model.element.VariableElement;
 
