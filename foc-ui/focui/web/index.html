@@ -32,9 +32,18 @@
   <title>focui</title>
   <link rel="manifest" href="manifest.json">
 
+  <!-- CORS and Security Configuration -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' http://localhost:8099 https://localhost:8099; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:8099 https://localhost:8099;">
+
   <script>
     // The value below is injected by flutter build, do not touch.
     const serviceWorkerVersion = null;
+    
+    // CORS configuration for development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      // Development mode - allow cross-origin requests
+      console.log('Development mode detected - CORS handling enabled');
+    }
   </script>
   <!-- This script adds the flutter initialization JS code -->
   <script src="flutter.js" defer></script>

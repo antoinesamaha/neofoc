@@ -54,6 +54,7 @@ neofoc-spring-boot-starter/target/**
 .idea/misc.xml
 .idea/vcs.xml
 .idea/workspace.xml
+**/.idea/
 
 *.iml
 *.ipr
