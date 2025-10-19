@@ -1,5 +1,6 @@
 package com.neofoc.springboot.config;
 
+import com.foc.ConfigInfo;
 import com.neofoc.springboot.service.ScanSpringBootEntitiesAndConvert2FocDesc;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
