@@ -1,0 +1,103 @@
+{
+  "layout": "column",
+  "spacing": 16,
+  "persistencePanel": true,
+  "fields": [   
+    {
+      "type": "section",
+      "name": "section",
+      "label": "section",
+      "title": "Main Information",
+      "layout": "column",
+      "spacing": 16,      
+      "fields": [
+        {
+          "type": "text",
+          "name": "lis_test_label",
+          "label": "LIS Test Label",
+          "required": true
+        },
+        {
+          "type": "text",
+          "name": "instrument_test_code",
+          "label": "Name",
+          "required": true
+        },
+        {
+          "type": "text",
+          "name": "descrip",
+          "label": "Description",
+          "required": true
+        },
+        {
+          "type": "integer",
+          "name": "day_priority",
+          "label": "Day Priority",
+          "required": true
+        },
+        {
+          "type": "dropdown",
+          "name": "driver_class_name",
+          "label": "Driver",
+          "options": [
+            {
+              "value": "b01.l3.drivers.horiba.pentraML.PentraMLDriver",
+              "label": "b01.l3.drivers.horiba.pentraML.PentraMLDriver"
+            },
+            {
+              "value": "b01.l3.drivers.abbott.architect.ArchitectDriver",
+              "label": "b01.l3.drivers.abbott.architect.ArchitectDriver"
+            },
+            {
+              "value": "b01.l3.drivers.coulter.CoulterDriver",
+              "label": "b01.l3.drivers.coulter.CoulterDriver"
+            },
+            {
+              "value": "b01.l3.drivers.hitachi.elecsys2010.ElecsysDriver",
+              "label": "b01.l3.drivers.hitachi.elecsys2010.ElecsysDriver"
+            },
+            {
+              "value": "b01.l3.drivers.abbott.modular.ModularDriver",
+              "label": "b01.l3.drivers.abbott.modular.ModularDriver"
+            },
+            {
+              "value": "b01.l3.drivers.roches.cobas.infinity.CobasInfinityDriver",
+              "label": "b01.l3.drivers.roches.cobas.infinity.CobasInfinityDriver"
+            },
+            {
+              "value": "b01.l3.drivers.dadeBehring.bcs.BCSDriver",
+              "label": "b01.l3.drivers.dadeBehring.bcs.BCSDriver"
+            },
+            {
+              "value": "b01.l3.drivers.maglumi.MaglumiDriver",
+              "label": "b01.l3.drivers.maglumi.MaglumiDriver"
+            },
+            {
+              "value": "b01.l3.drivers.octa.OctaDriver",
+              "label": "b01.l3.drivers.octa.OctaDriver"
+            },
+            {
+              "value": "b01.l3.drivers.horiba.yumizenP8000.YumizenP8000Driver",
+              "label": "b01.l3.drivers.horiba.yumizenP8000.YumizenP8000Driver"
+            }
+          ],
+          "required": true
+        },
+        {
+          "type": "text",
+          "name": "wait_for_resultConfirmation",
+          "label": "Wait For Result Confirmation",
+          "required": false
+        },
+        {
+          "type": "text",
+          "name": "onHold",
+          "label": "On Hold",
+          "required": false
+        }
+      ]
+    }    
+  ]
+}
+
+
