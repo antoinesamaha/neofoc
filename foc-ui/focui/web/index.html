@@ -1,19 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
@@ -32,8 +19,11 @@
   <title>focui</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- CORS and Security Configuration -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' http://192.168.100.114:8099 https://192.168.100.114:8099; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://192.168.100.114:8099 https://192.168.100.114:8099;">
+  <!-- Dynamic CORS and Security Configuration -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' ${API_URL} ${API_URL_HTTPS}; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ${API_URL} ${API_URL_HTTPS};">
+
+  <!-- Load environment variables -->
+  <script src="env.js"></script>
 
   <script>
     // The value below is injected by flutter build, do not touch.

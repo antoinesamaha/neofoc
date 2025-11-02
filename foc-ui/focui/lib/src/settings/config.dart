@@ -3,10 +3,30 @@ import 'package:focui/src/menu/menu.dart';
 import 'package:focui/src/entities/foc_entity_feature/foc_list_view.dart';
 import 'package:focui/src/entities/foc_entity_feature/custom_list_view.dart';
 import 'package:focui/src/entities/meta_feature/meta_entity.dart';
+import 'dart:js' as js;
 
 class Config {
-  static String baseUrl =
-      'http://192.168.100.114:8099'; // Replace with your API base URL
+  static String get baseUrl {
+    try {
+      // Try to get from JavaScript window.ENV
+      final env = js.context['ENV'];
+      if (env != null && env['API_URL'] != null) {
+        final url = env['API_URL'] as String;
+        // Make sure it's not the template placeholder
+        if (url.isNotEmpty && !url.startsWith('\${')) {
+          return url;
+        }
+      }
+    } catch (e) {
+      print('Could not load API_URL from environment: $e');
+    }
+
+    // Fallback to default
+    return 'http://localhost:8099';
+  }
+
+  // static String baseUrl =
+  //     'http://192.168.100.114:8099'; // Replace with your API base URL
   static String appName =
       'Neo Foc Application'; // Name of the application, to be set by the using package
   static IconData appIcon = Icons

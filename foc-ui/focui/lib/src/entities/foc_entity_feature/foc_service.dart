@@ -8,7 +8,7 @@ import 'foc_entity.dart';
 import '../../auth/auth_service.dart'; // Import AuthService
 
 class FocService {
-  static const String url = '${AppConstants.apiUrl}/foc/obj/';
+  static String url = '${AppConstants.apiUrl}/foc/obj/';
 
   // Helper to get headers with Authorization
   Map<String, String> headers({bool isJson = false}) {

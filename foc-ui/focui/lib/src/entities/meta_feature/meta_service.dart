@@ -16,7 +16,7 @@ class MetaService {
   // Factory constructor
   factory MetaService() => _instance;
 
-  static const String url = '${AppConstants.apiUrl}/meta/entities';
+  static String url = '${AppConstants.apiUrl}/meta/entities';
   Map<String, MetaEntity>? _entities;
 
   // Helper to get headers with Authorization
