@@ -78,8 +78,8 @@ class FocListViewState extends JsonFormState<FocListView> {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No items found'));
+            // } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            //   return const Center(child: Text('No items found'));
           } else {
             final List<FocEntity> focEntityList = snapshot.data!;
 
