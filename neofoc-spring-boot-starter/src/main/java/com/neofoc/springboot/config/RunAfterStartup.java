@@ -34,6 +34,7 @@ public class RunAfterStartup {
 		FocSampleMain main = new FocSampleMain(focArgs);
 		main.init2(focArgs);
 		main.init3(focArgs);
+		Globals.getApp().setStarted(true);
 	}
 
 	/*

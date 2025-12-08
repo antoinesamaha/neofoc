@@ -191,6 +191,8 @@ public class Application {
     private FocMenuSettings menuSettings = null;
     private IDBReloader dbReloader = null;
 
+    private boolean started = false;
+
     public Application(boolean withDatabase, boolean withLogin, boolean mdi) {
         this(withDatabase, withLogin, mdi, null);
     }
@@ -2307,4 +2309,11 @@ public class Application {
         this.dbReloader = dbReloader;
     }
 
+    public boolean isStarted() {
+        return started;
+    }
+
+    public void setStarted(boolean started) {
+        this.started = started;
+    }
 }
