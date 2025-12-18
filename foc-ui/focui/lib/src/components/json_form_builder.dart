@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:focui/src/entities/foc_entity_feature/foc_details_view.dart';
+import 'package:focui/src/entities/meta_feature/meta_service.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
@@ -150,7 +151,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       return const Center(child: Text('No form data available'));
     }
 
-    return FormBuilder(
+    return Container(
+        child: FormBuilder(
       key: _formKey,
       initialValue: widget.initialValues ?? {},
       autovalidateMode: widget.autovalidateMode,
@@ -160,7 +162,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         }
       },
       child: _buildFormFields(_parsedFormData!),
-    );
+    ));
   }
 
   Widget _buildFormFields(Map<String, dynamic> formData) {
@@ -252,17 +254,14 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         if (fieldWidgets.isEmpty) return const SizedBox.shrink();
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-                maxWidth: 800), // Set your desired max width here
-            child: Row(
-              children: fieldWidgets
-                  .map((w) => Padding(
-                        padding: EdgeInsets.only(right: spacing),
-                        child: w,
-                      ))
-                  .toList(),
-            ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: fieldWidgets
+                .map((w) => Padding(
+                      padding: EdgeInsets.only(right: spacing),
+                      child: w,
+                    ))
+                .toList(),
           ),
         );
       case 'wrap':
@@ -289,17 +288,14 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         return SingleChildScrollView(
           scrollDirection: Axis.vertical,
           child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                  maxWidth: 800), // Set your desired max width here
-              child: Column(
-                children: fieldWidgets
-                    .map((w) => Padding(
-                          padding: EdgeInsets.only(top: spacing),
-                          child: w,
-                        ))
-                    .toList(),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: fieldWidgets
+                  .map((w) => Padding(
+                        padding: EdgeInsets.only(top: spacing),
+                        child: w,
+                      ))
+                  .toList(),
             ),
           ),
         );
@@ -567,8 +563,33 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
 
       case 'data_table':
         final columnsData = fieldData['columns'] as List<dynamic>? ?? [];
-        final rowsData =
-            fieldData['rows'] as List<dynamic>? ?? widget.focEntityList;
+
+        var tableMetaEntity = widget.metaEntity;
+
+        // Try to get rows from multiple sources in priority order:
+        // 1. Explicit rows in fieldData
+        // 2. widget.focEntityList
+        // 3. Get from widget.focEntity by field name
+        List<dynamic> rowsData;
+        if (fieldData['rows'] != null) {
+          rowsData = fieldData['rows'] as List<dynamic>;
+        } else if (widget.focEntityList != null) {
+          rowsData = widget.focEntityList!;
+        } else if (widget.focEntity != null && name.isNotEmpty) {
+          // Try to get the list from focEntity properties by field name
+          final fieldValue = widget.focEntity!.properties[name];
+          if (fieldValue is List) {
+            rowsData = fieldValue;
+            if (fieldData['meta_entity'] != null) {
+              tableMetaEntity =
+                  MetaService().getEntityByName(fieldData['meta_entity']);
+            }
+          } else {
+            rowsData = [];
+          }
+        } else {
+          rowsData = [];
+        }
 
         final columns = [
           ...columnsData.map<DataColumn>((col) => DataColumn(
@@ -582,7 +603,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           ),
         ];
 
-        final rows = rowsData!.map<DataRow>((row) {
+        final rows = rowsData.map<DataRow>((row) {
           final cells = [
             ...columnsData.map((col) {
               final key = col['key']?.toString() ?? '';
@@ -625,9 +646,9 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
               children: [
                 ElevatedButton.icon(
                   icon: const Icon(Icons.add),
-                  label: const Text('Add'),
+                  label: const Text('Add ++'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4A00E0),
+                    backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
@@ -643,7 +664,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => FocDetailsView(
-                          metaEntity: widget.metaEntity!,
+                          metaEntity: tableMetaEntity!, //widget.metaEntity!,
                           itemId: null, // null means create new
                         ),
                       ),
@@ -653,30 +674,23 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
               ],
             ),
             const SizedBox(height: 8),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400, width: 1.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 700),
-                    child: DataTable(
-                      columns: columns,
-                      rows: rows,
-                      headingRowColor:
-                          MaterialStateProperty.resolveWith<Color?>(
-                              (states) => Colors.blueGrey.shade700),
-                      headingTextStyle: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade400, width: 1.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: DataTable(
+                  columns: columns,
+                  rows: rows,
+                  headingRowColor: MaterialStateProperty.resolveWith<Color?>(
+                      (states) => Colors.blueGrey.shade700),
+                  headingTextStyle: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    letterSpacing: 1.1,
                   ),
                 ),
               ),

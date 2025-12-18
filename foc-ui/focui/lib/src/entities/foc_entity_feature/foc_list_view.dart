@@ -134,149 +134,147 @@ class FocListViewState extends JsonFormState<FocListView> {
   }
 
   Widget defaultEntityListForm(List<FocEntity> focEntityList) {
-    return Center(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final double tableWidth = constraints.maxWidth * 0.8;
-          return SizedBox(
-            width: tableWidth,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Add button aligned with the table
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8, top: 8),
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4A00E0),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 22, vertical: 14),
-                      textStyle: const TextStyle(fontSize: 16),
-                      elevation: 0,
+    return LayoutBuilder(
+      // Remove Center widget
+      builder: (context, constraints) {
+        final double tableWidth = constraints.maxWidth; // * 0.8;
+        return SizedBox(
+          width: tableWidth,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Add button aligned with the table
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8, top: 8),
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4A00E0),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
                     ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => FocDetailsView(
-                            metaEntity: widget.metaEntity,
-                            itemId: null, // null means create new
-                          ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 22, vertical: 14),
+                    textStyle: const TextStyle(fontSize: 16),
+                    elevation: 0,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FocDetailsView(
+                          metaEntity: widget.metaEntity,
+                          itemId: null, // null means create new
                         ),
-                      ).then((newItem) {
-                        if (newItem != null) {
-                          setState(() {
-                            futureItems =
-                                FocService().fetchItems(widget.metaEntity);
-                          });
+                      ),
+                    ).then((newItem) {
+                      if (newItem != null) {
+                        setState(() {
+                          futureItems =
+                              FocService().fetchItems(widget.metaEntity);
+                        });
+                      }
+                    });
+                  },
+                ),
+              ),
+              // Table
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Builder(
+                  builder: (context) {
+                    final displayFieldNames = getDisplayFieldNames();
+                    final displayFields =
+                        widget.metaEntity.fields.where((field) {
+                      final lower = field.name.toLowerCase();
+                      return displayFieldNames.contains(lower);
+                    }).toList();
+                    return DataTable(
+                      headingRowColor:
+                          MaterialStateProperty.resolveWith<Color?>(
+                              (states) => const Color(0xFF232946)),
+                      headingTextStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 17,
+                        letterSpacing: 1.1,
+                      ),
+                      dataRowColor:
+                          MaterialStateProperty.resolveWith<Color?>((states) {
+                        if (states.contains(MaterialState.selected)) {
+                          return Colors.deepPurple.withOpacity(0.10);
                         }
-                      });
-                    },
-                  ),
-                ),
-                // Table
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Builder(
-                    builder: (context) {
-                      final displayFieldNames = getDisplayFieldNames();
-                      final displayFields =
-                          widget.metaEntity.fields.where((field) {
-                        final lower = field.name.toLowerCase();
-                        return displayFieldNames.contains(lower);
-                      }).toList();
-                      return DataTable(
-                        headingRowColor:
-                            MaterialStateProperty.resolveWith<Color?>(
-                                (states) => const Color(0xFF232946)),
-                        headingTextStyle: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontSize: 17,
-                          letterSpacing: 1.1,
-                        ),
-                        dataRowColor:
-                            MaterialStateProperty.resolveWith<Color?>((states) {
-                          if (states.contains(MaterialState.selected)) {
-                            return Colors.deepPurple.withOpacity(0.10);
-                          }
-                          if (states.contains(MaterialState.hovered)) {
-                            return const Color(0xFFB8C1EC).withOpacity(0.35);
-                          }
-                          return states.contains(MaterialState.focused)
-                              ? Colors.blue.withOpacity(0.10)
-                              : null;
-                        }),
-                        dataTextStyle: const TextStyle(
-                          fontSize: 15,
-                          color: Colors.black,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        dividerThickness: 1.2,
-                        columnSpacing: 32,
-                        horizontalMargin: 22,
-                        columns: [
-                          ...displayFields.map((field) {
-                            return DataColumn(
-                                label: Text(_capitalize(field.name)));
-                          }).toList(),
-                          ...getCustomColumns(),
-                          const DataColumn(label: Text('Actions')),
-                        ],
-                        rows: focEntityList.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final item = entry.value;
-                          return DataRow(
-                            color: MaterialStateProperty.resolveWith<Color?>(
-                                (states) {
-                              if (states.contains(MaterialState.hovered)) {
-                                return const Color(0xFFB8C1EC)
-                                    .withOpacity(0.35);
-                              }
-                              return index % 2 == 0
-                                  ? const Color(0xFFF4F6FB)
-                                  : const Color(0xFFF9F9FB);
-                            }),
-                            cells: [
-                              ...displayFields.map((field) {
-                                return DataCell(
-                                    Text(item[field.dbName]?.toString() ?? ''));
-                              }).toList(),
-                              ...getCustomDataCells(item),
-                              DataCell(Row(children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit),
-                                  tooltip: 'Edit',
-                                  color: const Color(0xFF4A00E0),
-                                  onPressed: () => editItem(item),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete),
-                                  tooltip: 'Delete',
-                                  color: Colors.redAccent,
-                                  onPressed: () => deleteItem(item),
-                                ),
-                              ])),
-                            ],
-                          );
+                        if (states.contains(MaterialState.hovered)) {
+                          return const Color(0xFFB8C1EC).withOpacity(0.35);
+                        }
+                        return states.contains(MaterialState.focused)
+                            ? Colors.blue.withOpacity(0.10)
+                            : null;
+                      }),
+                      dataTextStyle: const TextStyle(
+                        fontSize: 15,
+                        color: Colors.black,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      dividerThickness: 1.2,
+                      columnSpacing: 32,
+                      horizontalMargin: 22,
+                      columns: [
+                        ...displayFields.map((field) {
+                          return DataColumn(
+                              label: Text(_capitalize(field.name)));
                         }).toList(),
-                      );
-                    },
-                  ),
+                        ...getCustomColumns(),
+                        const DataColumn(label: Text('Actions')),
+                      ],
+                      rows: focEntityList.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final item = entry.value;
+                        return DataRow(
+                          color: MaterialStateProperty.resolveWith<Color?>(
+                              (states) {
+                            if (states.contains(MaterialState.hovered)) {
+                              return const Color(0xFFB8C1EC).withOpacity(0.35);
+                            }
+                            return index % 2 == 0
+                                ? const Color(0xFFF4F6FB)
+                                : const Color(0xFFF9F9FB);
+                          }),
+                          cells: [
+                            ...displayFields.map((field) {
+                              return DataCell(
+                                  Text(item[field.dbName]?.toString() ?? ''));
+                            }).toList(),
+                            ...getCustomDataCells(item),
+                            DataCell(Row(children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit),
+                                tooltip: 'Edit',
+                                color: const Color(0xFF4A00E0),
+                                onPressed: () => editItem(item),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete),
+                                tooltip: 'Delete',
+                                color: Colors.redAccent,
+                                onPressed: () => deleteItem(item),
+                              ),
+                            ])),
+                          ],
+                        );
+                      }).toList(),
+                    );
+                  },
                 ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
     );
   }
 
