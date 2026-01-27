@@ -35,8 +35,7 @@ import java.util.regex.Pattern;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
-import javax.servlet.http.HttpServletRequest;
-
+import jakarta.servlet.http.HttpServletRequest;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 
@@ -468,7 +467,7 @@ public class Utils {
 	 * @param param
 	 * @return String
 	 */
-	public static String getCleanRequestParam(HttpServletRequest request,String param) {
+	public static String getCleanRequestParam(HttpServletRequest request, String param) {
 		
 		String paramString = request != null ? request.getParameter(param) : null;
 		if(!Utils.isStringEmpty(paramString)) {

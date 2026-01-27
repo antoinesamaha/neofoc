@@ -1,0 +1,57 @@
+{
+  "title": "Instrument",
+  "layout": "row",
+  "spacing": 16,
+  "fields": [   
+    {
+      "type": "section",
+      "name": "section1",
+      "layout": "column",
+      "label": "section1",
+      "title": "Section 1",
+      "spacing": 16,      
+      "fields": [
+        {
+          "type": "text",
+          "name": "code",
+          "label": "Code",
+          "required": true
+        },
+        {
+          "type": "number",
+          "name": "com_port",
+          "label": "Port",
+          "required": true
+        },
+        {
+          "type": "number",
+          "name": "com_baude_rate",
+          "label": "Baud Rate",
+          "required": true
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "name": "section2",
+      "label": "section2",
+      "layout": "column",
+      "title": "Section 2",
+      "spacing": 16,      
+      "fields": [
+        {
+          "type": "text",
+          "name": "driver_class_name",
+          "label": "Driver Class",
+          "required": true
+        },
+        {
+          "type": "boolean",
+          "name": "is_emul",
+          "label": "Is Emulator",
+          "required": true
+        }
+      ]
+    }     
+  ]
+}

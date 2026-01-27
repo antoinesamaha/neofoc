@@ -11,6 +11,7 @@ import com.foc.business.workflow.WorkflowModule;
 import com.foc.db.migration.MigrationModule;
 import com.foc.link.LinkModule;
 import com.foc.pivot.PivotModule;
+import org.springframework.context.ApplicationContext;
 
 public class FocSampleMain extends FocMainClass {
 
@@ -28,5 +29,9 @@ public class FocSampleMain extends FocMainClass {
 		ParameterSheetFactory.setEmptyParamSetAsDefaultParamSet();
 		CurrencyModule.includeCurrencyModule();
 		CalendarModule.getInstance().declare();
+
+		ApplicationContext applicationContext = ApplicationContextProvider.getApplicationContext();
+		FocModuleScanner focModuleScanner = applicationContext.getBean(FocModuleScanner.class);
+		focModuleScanner.declareFocModulesFromAnnotations();
 	}
 }

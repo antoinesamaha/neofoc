@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:focui/src/entities/foc_entity_feature/foc_list_view.dart';
+import 'package:focui/src/entities/meta_feature/meta_entity.dart';
+import 'package:focui/src/entities/meta_feature/meta_service.dart';
+import 'package:focui/src/settings/config.dart';
 
 import '../settings/settings_view.dart';
 import 'menu.dart';
 
 /// Displays a list of SampleItems.
 class MenuView extends StatelessWidget {
-  const MenuView({
-    super.key,
-    this.items = const [Menu("Countries", "/countries"), Menu("Entities", "/entities")],
-  });
+  MenuView({super.key});
 
   static const routeName = '/';
 
-  final List<Menu> items;
+  final List<Menu> items = Config.menuItems;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Entities Menu'),
+        //title: const Text('Entities Menu'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -48,20 +49,62 @@ class MenuView extends StatelessWidget {
           final item = items[index];
 
           return ListTile(
-              title: Text(item.displayName),
-              leading: const CircleAvatar(
-                // Display the Flutter Logo image asset.
-                foregroundImage: AssetImage('assets/images/flutter_logo.png'),
-              ),
-              onTap: () {
-                // Navigate to the details page. If the user leaves and returns to
-                // the app after it has been killed while running in the
-                // background, the navigation stack is restored.
+            leading: item.iconData != null
+                ? Icon(item.iconData)
+                : CircleAvatar(
+                    foregroundImage: AssetImage(item.iconImageFile),
+                  ),
+            title: Text(item.displayName),
+            onTap: () {
+              // Navigate to the details page. If the user leaves and returns to
+              // the app after it has been killed while running in the
+              // background, the navigation stack is restored.
+
+              MetaEntity? metaEntity =
+                  MetaService().getEntityByName(item.entityName);
+
+              if (metaEntity != null) {
+                // Determine which widget class to use
+                String widgetClassName = item.widgetClassName ?? 'FocListView';
+
+                // Get the widget factory from the registry
+                var widgetFactory = Config.widgetClassRegistry[widgetClassName];
+
+                if (widgetFactory != null) {
+                  // Create the widget using the factory function
+                  Widget targetWidget = widgetFactory(metaEntity);
+
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => targetWidget,
+                    ),
+                  );
+                } else {
+                  // Fallback to default FocListView if widget class not found
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => FocListView(metaEntity: metaEntity),
+                    ),
+                  );
+                }
+              } else {
+                // If the entity is null, Go to the menu path
                 Navigator.restorablePushNamed(
                   context,
                   item.entityPath,
                 );
-              });
+              }
+            },
+          );
+
+          // Navigate to the details page. If the user leaves and returns to
+          // the app after it has been killed while running in the
+          // background, the navigation stack is restored.
+          //GoRouter.of(context).goNamed('entities');
+          // Navigator.restorablePushNamed(
+          //   context,
+          //   item.entityPath,
+          // );
         },
       ),
     );

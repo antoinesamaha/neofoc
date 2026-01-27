@@ -12,16 +12,16 @@
 
     <groupId>com.neofoc</groupId>
     <artifactId>neofoc-spring-boot-starter</artifactId>
-    <version>${neofoc.version}</version>
+    <version>2.0.0-SNAPSHOT</version>
     <name>neofoc-spring-boot-starter</name>
     <description>neofoc-spring-boot-starter</description>
     <packaging>jar</packaging>
 
     <properties>
-        <neofoc.version>2.0.0-SNAPSHOT</neofoc.version>
+        <neofocversion>2.0.0-SNAPSHOT</neofocversion>
 
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -56,22 +56,36 @@
 
         <dependency>
             <groupId>com.neofoc</groupId>
-            <artifactId>foc</artifactId>
-            <version>${neofoc.version}</version>
+            <artifactId>neofoc</artifactId>
+            <version>${neofocversion}</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>com.neofoc</groupId>
             <artifactId>neofoc-datasource</artifactId>
-            <version>${neofoc.version}</version>
+            <version>${neofocversion}</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/jakarta.servlet/jakarta.servlet-api -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>6.0.0</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>servlet-api</artifactId>
-            <version>2.5</version>
-            <scope>compile</scope>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.30</version>
+            <scope>provided</scope>
+        </dependency>
+
+         <dependency>
+            <groupId>org.reflections</groupId>
+            <artifactId>reflections</artifactId>
+            <version>0.10.2</version>
         </dependency>
 
     </dependencies>
@@ -87,5 +101,20 @@
             </plugin>
         </plugins>
     </build>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/antoinesamaha/neofoc</url>
+        </snapshotRepository>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/antoinesamaha/neofoc</url>
+        </repository>
+    </distributionManagement>
+
+    <scm>
+        <url>https://github.com/antoinesamaha/neofoc.git</url>
+    </scm>
 
 </project>

@@ -59,7 +59,7 @@ public interface IFocDataSource {
 	public boolean       focObject_Redirect(FocObject initialFocObject, FocObject newFocObject);
 	public int           focObject_GetNumberOfReferences(FocObject focObj, StringBuffer message, ReferenceChecker referenceCjeckerToIgnore, ArrayList<ReferenceCheckerToPutToZero> arrayPutToZero, ArrayList<ReferenceCheckerDelete> arrayDelete);
 	public int           focObject_GetReference_ForUniqueKey(FocObject focObj);
-	public int           focObject_GetReference_ForFilter(FocDesc focDesc, String filterExpression);
+	public long          focObject_GetReference_ForFilter(FocDesc focDesc, String filterExpression);
 	public BufferedImage focObject_LoadImage(FocObject focObject, int fieldID);
 	public InputStream   focObject_LoadInputStream(FocObject focObject, int fieldID);
 	public boolean       focObject_UpdateImage(FocObject focObject, int fieldID, File file);

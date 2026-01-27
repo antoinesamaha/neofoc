@@ -1,0 +1,49 @@
+{
+  "title": "Entity Form",
+  "layout": "column",
+  "spacing": 16,
+  "fields": [
+    {
+      "type": "text",
+      "name": "name",
+      "label": "Name",
+      "required": true
+    },
+    {
+      "type": "text",
+      "name": "description",
+      "label": "Description",
+      "maxLines": 3
+    },
+    {
+      "type": "dropdown",
+      "name": "status",
+      "label": "Status",
+      "required": true,
+      "options": [
+        {
+          "value": "active",
+          "label": "Active"
+        },
+        {
+          "value": "inactive",
+          "label": "Inactive"
+        },
+        {
+          "value": "pending",
+          "label": "Pending"
+        }
+      ]
+    },
+    {
+      "type": "date",
+      "name": "created_date",
+      "label": "Created Date"
+    },
+    {
+      "type": "checkbox",
+      "name": "is_featured",
+      "label": "Featured Item"
+    }
+  ]
+}

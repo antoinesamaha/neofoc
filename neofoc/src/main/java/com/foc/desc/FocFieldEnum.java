@@ -113,7 +113,7 @@ public class FocFieldEnum implements Iterator {
     if (fields == null) {
       fields = new ArrayList<IterElem>();
     }
-//    if(focDesc != null) {
+    if(focDesc != null) {
 	    if (category == CAT_REF && focDesc.getWithReference()) {
 	      // If the category is reference and the ref field exists
 	      // then, there is only one field.
@@ -133,7 +133,7 @@ public class FocFieldEnum implements Iterator {
 	        addElement(field);
 	      }
 	    }
-//    }
+    }
   }
 
   public FocFieldEnum(FocDesc focDesc, FocObject focObj, ArrayList<IterElem> fields, FFieldPath currentFieldPath, int category, int level) {

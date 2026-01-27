@@ -617,4 +617,8 @@ public class FObjectField extends FField {
 	public boolean isCascade() {
 		return cascade;
 	}
+
+    public void setCascade(boolean cascade) {
+        this.cascade = cascade;
+    }
 }
