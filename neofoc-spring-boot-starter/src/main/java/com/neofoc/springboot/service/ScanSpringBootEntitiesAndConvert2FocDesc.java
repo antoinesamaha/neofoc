@@ -90,26 +90,41 @@ public class ScanSpringBootEntitiesAndConvert2FocDesc {
 
                 Globals.logString("    ATTRIBUTE TYPE: " + att.getName()+" class: "+attributeClass.getName());
 
+                // Read @Column annotation if present
+                boolean isNullable = true; // default for JPA
+                int columnLength = 1000; // default for JPA String columns
+                try {
+                    Field entityField = typeClass.getDeclaredField(attributeName);
+                    if (entityField.isAnnotationPresent(Column.class)) {
+                        Column columnAnnotation = entityField.getAnnotation(Column.class);
+                        isNullable = columnAnnotation.nullable();
+                        columnLength = columnAnnotation.length();
+                    }
+                } catch (NoSuchFieldException nsfe) {
+                    // Field not found, ignore
+                }
+
                 if (att.getName().toLowerCase().equals(idPrimaryKeyAttrinuteName)) {
                     FField fld = focDesc.addReferenceField();
                     fld.setName(idPrimaryKeyAttrinuteName);
                 } else if (attributeClass == String.class) {
-                    FStringField fld = new FStringField(fieldName, title, fieldID++, false, 1000);
+                    // Use columnLength and isNullable from @Column
+                    FStringField fld = new FStringField(fieldName, title, fieldID++, !isNullable, columnLength > 0 ? columnLength : 1000);
                     focDesc.addField(fld);
                 } else if (attributeClass == Integer.class) {
-                    FIntField fld = new FIntField(fieldName, title, fieldID++, false, 10);
+                    FIntField fld = new FIntField(fieldName, title, fieldID++, !isNullable, 10);
                     focDesc.addField(fld);
                 } else if (attributeClass == Double.class) {
-                    FNumField fld = new FNumField(fieldName, title, fieldID++, false, 20, 5);
+                    FNumField fld = new FNumField(fieldName, title, fieldID++, !isNullable, 20, 5);
                     focDesc.addField(fld);
                 } else if (attributeClass == LocalDateTime.class) {
-                    FDateTimeField fld = new FDateTimeField(fieldName, title, fieldID++, false);
+                    FDateTimeField fld = new FDateTimeField(fieldName, title, fieldID++, !isNullable);
                     focDesc.addField(fld);
                 } else if (attributeClass == LocalDate.class) {
-                    FDateField fld = new FDateField(fieldName, title, fieldID++, false);
+                    FDateField fld = new FDateField(fieldName, title, fieldID++, !isNullable);
                     focDesc.addField(fld);
                 } else if (attributeClass == Boolean.class) {
-                    FBoolField fld = new FBoolField(fieldName, title, fieldID++, false);
+                    FBoolField fld = new FBoolField(fieldName, title, fieldID++, !isNullable);
                     focDesc.addField(fld);
                 } else if (attributeClass == Set.class) {
                     if (att instanceof PluralAttribute) {
