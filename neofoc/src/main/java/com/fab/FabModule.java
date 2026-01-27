@@ -136,7 +136,7 @@ public class FabModule extends FocModule {
 		FocList tablesList = new FocList(tableDefinitionLink, null);
 
 		try {
-			if (Globals.getApp().isWebServer()) {
+			if (Globals.getApp().isWebServer() && Globals.getIFocNotification() != null) {
 				Globals.getIFocNotification().setNotificationsEnabled(false);
 			}
 			tablesList.loadIfNotLoadedFromDB();
@@ -165,7 +165,7 @@ public class FabModule extends FocModule {
 		FocLinkSimple filterDefinitionLink = new FocLinkSimple(FilterDefinitionDesc.getInstance());
 		FocList filterDefinitionList = new FocList(filterDefinitionLink);
 		try {
-			if (Globals.getApp().isWebServer())
+			if (Globals.getApp().isWebServer() && Globals.getIFocNotification() != null)
 				Globals.getIFocNotification().setNotificationsEnabled(false);
 			filterDefinitionList.loadIfNotLoadedFromDB();
 			Iterator<FilterDefinition> iter = filterDefinitionList.focObjectIterator();

@@ -1,5 +1,11 @@
 focAPI/target/**
 focShared/target/**
+neofoc/target/**
+neofoc-datasource/target/**
+neofoc-officelink/target/**
+neofoc-parent/target/**
+neofoc-spring-boot-starter/target/**
+
 
 # Created by https://www.toptal.com/developers/gitignore/api/java,intellij
 # Edit at https://www.toptal.com/developers/gitignore?templates=java,intellij
@@ -44,6 +50,12 @@ focShared/target/**
 .idea/modules.xml
 .idea/*.iml
 .idea/modules
+
+.idea/misc.xml
+.idea/vcs.xml
+.idea/workspace.xml
+**/.idea/
+
 *.iml
 *.ipr
 
@@ -146,3 +158,4 @@ replay_pid*
 # End of https://www.toptal.com/developers/gitignore/api/java,intellij
 /.idea/encodings.xml
 /.idea/vcs.xml
+

@@ -4,12 +4,16 @@ import '../meta_feature/meta_entity.dart';
 import 'foc_entity.dart';
 import 'foc_field_types.dart';
 import 'foc_service.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart';
+import '../../components/json_form_builder.dart';
 
 class FocDetailsView extends StatefulWidget {
   final MetaEntity metaEntity;
-  final String itemId;
+  final String? itemId;
 
-  const FocDetailsView({super.key, required this.metaEntity, required this.itemId});
+  const FocDetailsView(
+      {super.key, required this.metaEntity, required this.itemId});
 
   static const routeName = '/entity/details';
 
@@ -17,20 +21,22 @@ class FocDetailsView extends StatefulWidget {
   _FocDetailsViewState createState() => _FocDetailsViewState();
 }
 
-class _FocDetailsViewState extends State<FocDetailsView> {
+class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
   final _formKey = GlobalKey<FormBuilderState>();
   late Future<FocEntity> futureItem;
 
   @override
   void initState() {
     super.initState();
-    futureItem = FocService().fetchItemDetails(widget.metaEntity, widget.itemId);
+    futureItem =
+        FocService().fetchItemDetails(widget.metaEntity, widget.itemId ?? '');
   }
 
   void _saveItem(FocEntity focEntity) async {
     if (_formKey.currentState?.saveAndValidate() ?? false) {
       final updatedData = _formKey.currentState?.value;
-      final updatedEntity = FocEntity.fromJson(updatedData!);
+      final updatedEntity =
+          FocEntity.fromJson(focEntity.metaEntity, updatedData!);
       try {
         if (updatedEntity.id != null && updatedEntity.id > 0) {
           await FocService().updateItem(widget.metaEntity, updatedEntity);
@@ -48,7 +54,8 @@ class _FocDetailsViewState extends State<FocDetailsView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.metaEntity.name} Details'),
+        title: Text(
+            '${widget.metaEntity.name[0].toUpperCase()}${widget.metaEntity.name.substring(1)}'),
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
@@ -72,74 +79,136 @@ class _FocDetailsViewState extends State<FocDetailsView> {
             final focEntity = snapshot.data!;
             return Padding(
               padding: const EdgeInsets.all(16.0),
-              child: FormBuilder(
-                key: _formKey,
-                child: Column(
-                  children: widget.metaEntity.fields.map((field) {
-                    switch (field.sqlType) {
-                      case FocFieldTypes.VARCHAR:
-                      case FocFieldTypes.CHAR:
-                      case FocFieldTypes.LONGVARCHAR:
-                      case FocFieldTypes.NVARCHAR:
-                      case FocFieldTypes.NCHAR:
-                      case FocFieldTypes.LONGNVARCHAR:
-                        return FormBuilderTextField(
-                          name: field.dbName,
-                          initialValue: focEntity[field.dbName].toString(),
-                          decoration: InputDecoration(
-                            labelText: field.name,
-                          ),
-                        );
-                      case FocFieldTypes.INTEGER:
-                      case FocFieldTypes.SMALLINT:
-                      case FocFieldTypes.TINYINT:
-                      case FocFieldTypes.BIGINT:
-                      case FocFieldTypes.FLOAT:
-                      case FocFieldTypes.REAL:
-                      case FocFieldTypes.DOUBLE:
-                      case FocFieldTypes.NUMERIC:
-                      case FocFieldTypes.DECIMAL:
-                        return FormBuilderTextField(
-                          name: field.dbName,
-                          initialValue: focEntity[field.dbName].toString(),
-                          decoration: InputDecoration(
-                            labelText: field.name,
-                          ),
-                          keyboardType: TextInputType.number,
-                        );
-                      case FocFieldTypes.DATE:
-                      case FocFieldTypes.TIME:
-                      case FocFieldTypes.TIMESTAMP:
-                      case FocFieldTypes.TIME_WITH_TIMEZONE:
-                      case FocFieldTypes.TIMESTAMP_WITH_TIMEZONE:
-                        return FormBuilderDateTimePicker(
-                          name: field.dbName,
-                          initialValue: DateTime.tryParse(focEntity[field.dbName].toString()),
-                          decoration: InputDecoration(
-                            labelText: field.name,
-                          ),
-                        );
-                      case FocFieldTypes.BOOLEAN:
-                        return FormBuilderCheckbox(
-                          name: field.dbName,
-                          initialValue: focEntity[field.dbName] == 'true',
-                          title: Text(field.name),
-                        );
-                      default:
-                        return FormBuilderTextField(
-                          name: field.dbName,
-                          initialValue: focEntity[field.dbName].toString(),
-                          decoration: InputDecoration(
-                            labelText: field.name,
-                          ),
-                        );
-                    }
-                  }).toList(),
-                ),
+              child: FutureBuilder<Widget>(
+                future: entityForm(focEntity),
+                builder: (context, formSnapshot) {
+                  if (formSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (formSnapshot.hasError) {
+                    return Center(
+                        child:
+                            Text('Error loading form: ${formSnapshot.error}'));
+                  } else if (formSnapshot.hasData) {
+                    return formSnapshot.data!;
+                  } else {
+                    return const Center(child: Text('No form available'));
+                  }
+                },
               ),
             );
           }
         },
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>?> loadJsonAssetIfExists(String assetPath) async {
+    try {
+      final jsonString = await rootBundle.loadString(assetPath);
+      return jsonDecode(jsonString) as Map<String, dynamic>;
+    } catch (e) {
+      // Asset does not exist or failed to load
+      return null;
+    }
+  }
+
+  Future<Widget> entityForm(FocEntity focEntity) async {
+    // Try to load a form file matching the entity name
+    String entityFormFile =
+        'assets/forms/${widget.metaEntity.name.toLowerCase().replaceAll(' ', '_')}_form.json';
+    try {
+      final jsonString = await rootBundle.loadString(entityFormFile);
+      final formData = json.decode(jsonString);
+      return JsonFormBuilder(
+        metaEntity: widget.metaEntity,
+        focEntity: focEntity,
+        assetPath: entityFormFile,
+        formData: formData,
+        formKey: _formKey,
+        initialValues: focEntity.properties,
+        onChanged: (values) {
+          // Handle form changes if needed
+        },
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        state: this,
+      );
+    } catch (e) {
+      // Fallback to the original form builder if no JSON form is available
+      return entityFormColumnWithAllFields(focEntity);
+    }
+  }
+
+  Widget entityFormColumnWithAllFields(FocEntity focEntity) {
+    return FormBuilder(
+      key: _formKey,
+      child: Column(
+        children: widget.metaEntity.fields.map((field) {
+          final value = focEntity[field.dbName];
+          final stringValue = value == null ? '' : value.toString();
+          switch (field.sqlType) {
+            case FocFieldTypes.VARCHAR:
+            case FocFieldTypes.CHAR:
+            case FocFieldTypes.LONGVARCHAR:
+            case FocFieldTypes.NVARCHAR:
+            case FocFieldTypes.NCHAR:
+            case FocFieldTypes.LONGNVARCHAR:
+              return FormBuilderTextField(
+                name: field.dbName,
+                initialValue: stringValue,
+                decoration: InputDecoration(
+                  labelText: field.name,
+                ),
+              );
+            case FocFieldTypes.INTEGER:
+            case FocFieldTypes.SMALLINT:
+            case FocFieldTypes.TINYINT:
+            case FocFieldTypes.BIGINT:
+            case FocFieldTypes.FLOAT:
+            case FocFieldTypes.REAL:
+            case FocFieldTypes.DOUBLE:
+            case FocFieldTypes.NUMERIC:
+            case FocFieldTypes.DECIMAL:
+              return FormBuilderTextField(
+                name: field.dbName,
+                initialValue: stringValue,
+                decoration: InputDecoration(
+                  labelText: field.name,
+                ),
+                keyboardType: TextInputType.number,
+              );
+            case FocFieldTypes.DATE:
+            case FocFieldTypes.TIME:
+            case FocFieldTypes.TIMESTAMP:
+            case FocFieldTypes.TIME_WITH_TIMEZONE:
+            case FocFieldTypes.TIMESTAMP_WITH_TIMEZONE:
+              return FormBuilderDateTimePicker(
+                name: field.dbName,
+                initialValue: (value == null ||
+                        value.toString() == '' ||
+                        value.toString() == 'null')
+                    ? null
+                    : DateTime.tryParse(value.toString()),
+                decoration: InputDecoration(
+                  labelText: field.name,
+                ),
+              );
+            case FocFieldTypes.BOOLEAN:
+              return FormBuilderCheckbox(
+                name: field.dbName,
+                initialValue:
+                    value == null ? false : (value == 'true' || value == true),
+                title: Text(field.name),
+              );
+            default:
+              return FormBuilderTextField(
+                name: field.dbName,
+                initialValue: stringValue,
+                decoration: InputDecoration(
+                  labelText: field.name,
+                ),
+              );
+          }
+        }).toList(),
       ),
     );
   }

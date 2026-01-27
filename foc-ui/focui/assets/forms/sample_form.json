@@ -1,0 +1,33 @@
+{
+  "title": "Sample Form",
+  "layout": "column",
+  "spacing": 16,
+  "fields": [    
+    {
+      "type": "section",
+      "name": "personal_info",
+      "label": "Personal Information",
+      "title": "Personal Information",
+      "fields": [
+        {
+          "type": "text",
+          "name": "name",
+          "label": "Name",
+          "required": true
+        },
+        {
+          "type": "text",
+          "name": "type",
+          "label": "Type",
+          "required": true
+        },
+        {
+          "type": "boolean",
+          "name": "depricated",
+          "label": "Depricated",
+          "required": false
+        }
+      ]
+    }      
+  ]
+}

@@ -30,6 +30,7 @@ package com.foc.desc;
 
 import com.foc.desc.field.*;
 import com.foc.gui.*;
+import com.foc.property.FProperty;
 
 /**
  * @author 01Barmaja
@@ -44,15 +45,19 @@ public class FocObjectGeneral extends FocObject{
 
   public FocObjectGeneral(FocConstructor constr) {
     super(constr);
-    
-    focDesc = constr.getFocDesc();
-    FocFieldEnum enumer = new FocFieldEnum(focDesc, FocFieldEnum.CAT_ALL, FocFieldEnum.LEVEL_PLAIN);
-    while(enumer != null && enumer.hasNext()){
-      FField field = (FField) enumer.next();
-      if(field != null){
-        field.newProperty(this, null);
-      }
-    }
+
+    newFocProperties();
+//    focDesc = constr.getFocDesc();
+//    FocFieldEnum enumer = new FocFieldEnum(focDesc, FocFieldEnum.CAT_ALL, FocFieldEnum.LEVEL_PLAIN);
+//    while(enumer != null && enumer.hasNext()){
+//      FField field = (FField) enumer.next();
+//      if(field != null){
+//        FProperty prop = field.newProperty(this, null);
+//        if (field.getID() == FField.REF_FIELD_ID && constr.getIdentifierValue() != null && prop != null){
+//          prop.setValue(constr.getIdentifierValue());
+//        }
+//      }
+//    }
   }
      
   public void dispose(){

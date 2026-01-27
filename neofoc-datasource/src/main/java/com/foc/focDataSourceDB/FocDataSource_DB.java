@@ -972,10 +972,10 @@ public class FocDataSource_DB implements IFocDataSource {
     //-----------------------------------------------------
 
     @Override
-    public int focObject_GetReference_ForFilter(FocDesc focDesc, String filterExpression) {
+    public long focObject_GetReference_ForFilter(FocDesc focDesc, String filterExpression) {
         SQLSelectFindReferenceForWhereExpression selectForWhere = new SQLSelectFindReferenceForWhereExpression(focDesc, filterExpression);
         selectForWhere.execute();
-        int ref = selectForWhere.getReference();
+        long ref = selectForWhere.getReference();
         selectForWhere.dispose();
         return ref;
     }

@@ -1,0 +1,23 @@
+{
+  "title": "Instrument Foc",
+  "layout": "column",
+  "spacing": 16,
+  "fields": [   
+    {
+      "type": "section",
+      "name": "section1",
+      "layout": "column",
+      "label": "section1",
+      "title": "Section 1",
+      "spacing": 16,      
+      "fields": [
+        {
+          "type": "text",
+          "name": "code",
+          "label": "Code",
+          "required": true
+        }
+      ]
+    }   
+  ]
+}

@@ -18,7 +18,7 @@ import com.foc.focDataSourceDB.db.connectionPooling.StatementWrapper;
  */
 public class SQLSelectFindReferenceForWhereExpression extends SQLSelect {
   
-	private int ref = 0;
+	private long ref = 0;
 	
   public SQLSelectFindReferenceForWhereExpression(FocDesc focDesc, String whereExpression) {
     super((FocObject)null, focDesc, null);
@@ -69,7 +69,7 @@ public class SQLSelectFindReferenceForWhereExpression extends SQLSelect {
       
     try {
 			if (resultSet != null && resultSet.next()) {
-				ref = resultSet.getInt(1);
+				ref = resultSet.getLong(1);
 			}
 			if(resultSet != null) resultSet.close();
 		} catch (SQLException e) {
@@ -79,7 +79,7 @@ public class SQLSelectFindReferenceForWhereExpression extends SQLSelect {
     return false;
   }
   
-  public int getReference(){
+  public long getReference(){
   	return ref;
   }
 }
