@@ -1317,6 +1317,19 @@ public class FocList extends AccessSubject implements IFocList {
       }
     }
   }
+
+    public synchronized void detach(FocObject focObj) {//Attention il faut enlever de elementByRefAussi
+        if(elements != null && focObj != null){
+            focObj.setFatherSubject(null);
+            FocListElement elementRemoved = elementHash_remove(focObj);
+            if(elementRemoved == null){
+                //Globals.logString("null debug obj");
+            }else{
+                //arrayList = null;
+                array_Remove(elementRemoved);
+            }
+        }
+    }
   
   public void removeCurrentObjectFromIterator(Iterator iter) {
     iter.remove();
