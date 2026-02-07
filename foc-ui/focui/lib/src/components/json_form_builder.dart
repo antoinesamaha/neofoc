@@ -74,6 +74,15 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   bool _isLoading = true;
   String? _error;
 
+  // Filter states keyed by "{tableName}_{filterKey}"
+  // Each value: { 'operator': String, 'value': dynamic, 'value2': dynamic }
+  final Map<String, Map<String, dynamic>> _filterStates = {};
+
+  // Server-side search results keyed by table field name
+  final Map<String, List<FocEntity>> _searchResults = {};
+  // Tables currently running a search
+  final Set<String> _searchingTables = {};
+
   @override
   void initState() {
     super.initState();
@@ -598,6 +607,21 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           rowsData = [];
         }
 
+        // Parse filters
+        final filtersData = (tableOptions['filters'] as List<dynamic>?)
+            ?.map((f) => f as Map<String, dynamic>)
+            .toList();
+
+        // Use server-side search results if available, otherwise fallback to client-side
+        if (_searchResults.containsKey(name)) {
+          rowsData = _searchResults[name]!;
+        } else if (filtersData != null &&
+            filtersData.isNotEmpty &&
+            tableMetaEntity == null) {
+          // Client-side fallback only when no metaEntity for server search
+          rowsData = _applyFilters(name, filtersData, rowsData);
+        }
+
         final columns = [
           ...columnsData.map<DataColumn>((col) => DataColumn(
                 label: Text(col['label']?.toString() ?? ''),
@@ -652,6 +676,10 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (filtersData != null && filtersData.isNotEmpty) ...[
+              _buildFilterSection(context, name, filtersData, tableMetaEntity),
+              const SizedBox(height: 10),
+            ],
             if (showAddButton == true) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -903,6 +931,437 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   Map<String, dynamic>? getCurrentValues() {
     return _formKey.currentState?.value;
   }
+
+  // ── Filter helpers ──────────────────────────────────────────────────
+
+  List<String> _getOperatorsForType(String type) {
+    switch (type) {
+      case 'string':
+        return ['contains', 'like', '=', '!=', 'isNull', 'isNotNull'];
+      case 'numeric':
+        return ['=', '>=', '<=', '>', '<', '!=', 'between', 'isNull', 'isNotNull'];
+      case 'date':
+        return ['=', '>=', '<=', 'between', 'isNull', 'isNotNull'];
+      default:
+        return ['='];
+    }
+  }
+
+  String _operatorLabel(String op) {
+    switch (op) {
+      case 'contains':
+        return 'Contains';
+      case 'like':
+        return 'Like';
+      case '=':
+        return 'Equals';
+      case '!=':
+        return 'Not equals';
+      case '>=':
+        return '>=';
+      case '<=':
+        return '<=';
+      case '>':
+        return '>';
+      case '<':
+        return '<';
+      case 'between':
+        return 'Between';
+      case 'isNull':
+        return 'Is Null';
+      case 'isNotNull':
+        return 'Is Not Null';
+      case 'in':
+        return 'In';
+      default:
+        return op;
+    }
+  }
+
+  Map<String, dynamic> _getFilterState(String tableName, String key) {
+    final stateKey = '${tableName}_$key';
+    return _filterStates[stateKey] ??= {
+      'operator': null,
+      'value': null,
+      'value2': null,
+    };
+  }
+
+  List<dynamic> _applyFilters(
+      String tableName, List<Map<String, dynamic>> filters, List<dynamic> rows) {
+    return rows.where((row) {
+      for (final filter in filters) {
+        final key = filter['key'] as String;
+        final type = filter['type'] as String? ?? 'string';
+        final state = _getFilterState(tableName, key);
+        final op = state['operator'] as String?;
+        final value = state['value'];
+
+        if (op == null || value == null || value.toString().isEmpty) continue;
+
+        final cellRaw = row is Map ? row[key] : null;
+        final cellStr = cellRaw?.toString() ?? '';
+
+        switch (type) {
+          case 'string':
+            final cellLower = cellStr.toLowerCase();
+            final valLower = value.toString().toLowerCase();
+            switch (op) {
+              case 'contains':
+                if (!cellLower.contains(valLower)) return false;
+              case 'equals':
+                if (cellLower != valLower) return false;
+              case 'not_equals':
+                if (cellLower == valLower) return false;
+              case 'not_contains':
+                if (cellLower.contains(valLower)) return false;
+            }
+            break;
+          case 'numeric':
+            final cellNum = num.tryParse(cellStr);
+            final valNum = num.tryParse(value.toString());
+            if (cellNum == null || valNum == null) return false;
+            switch (op) {
+              case 'equals':
+                if (cellNum != valNum) return false;
+              case 'greater_than':
+                if (cellNum <= valNum) return false;
+              case 'less_than':
+                if (cellNum >= valNum) return false;
+              case 'greater_or_equal':
+                if (cellNum < valNum) return false;
+              case 'less_or_equal':
+                if (cellNum > valNum) return false;
+              case 'between':
+                final val2 = state['value2'];
+                final valNum2 =
+                    val2 != null ? num.tryParse(val2.toString()) : null;
+                if (valNum2 == null) return false;
+                if (cellNum < valNum || cellNum > valNum2) return false;
+            }
+            break;
+          case 'date':
+            final cellDate = DateTime.tryParse(cellStr);
+            final valDate =
+                value is DateTime ? value : DateTime.tryParse(value.toString());
+            if (cellDate == null || valDate == null) return false;
+            final cellDay =
+                DateTime(cellDate.year, cellDate.month, cellDate.day);
+            final valDay =
+                DateTime(valDate.year, valDate.month, valDate.day);
+            switch (op) {
+              case 'equals':
+                if (cellDay != valDay) return false;
+              case 'after':
+                if (!cellDay.isAfter(valDay)) return false;
+              case 'before':
+                if (!cellDay.isBefore(valDay)) return false;
+              case 'between':
+                final val2 = state['value2'];
+                final valDate2 = val2 is DateTime
+                    ? val2
+                    : DateTime.tryParse(val2?.toString() ?? '');
+                if (valDate2 == null) return false;
+                final valDay2 =
+                    DateTime(valDate2.year, valDate2.month, valDate2.day);
+                if (cellDay.isBefore(valDay) || cellDay.isAfter(valDay2)) {
+                  return false;
+                }
+            }
+            break;
+        }
+      }
+      return true;
+    }).toList();
+  }
+
+  Widget _buildFilterSection(
+      BuildContext context, String tableName,
+      List<Map<String, dynamic>> filters, MetaEntity? metaEntity) {
+    final isSearching = _searchingTables.contains(tableName);
+    return ExpansionTile(
+      title: Row(
+        children: [
+          Icon(Icons.filter_list, color: Colors.blueGrey.shade700, size: 20),
+          const SizedBox(width: 8),
+          Text('Filters',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blueGrey.shade700)),
+        ],
+      ),
+      tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+      collapsedShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+      children: [
+        ...filters.map((filter) {
+          final key = filter['key'] as String;
+          final label = filter['label'] as String? ?? key;
+          final type = filter['type'] as String? ?? 'string';
+          final operators = _getOperatorsForType(type);
+          final state = _getFilterState(tableName, key);
+          final selectedOp = state['operator'] as String?;
+          final isNullOp = selectedOp == 'isNull' || selectedOp == 'isNotNull';
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 130,
+                  child: Text(label,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w500, fontSize: 14)),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 150,
+                  child: DropdownButtonFormField<String>(
+                    value: selectedOp,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    hint: const Text('Operator', style: TextStyle(fontSize: 13)),
+                    items: operators
+                        .map((op) => DropdownMenuItem(
+                            value: op,
+                            child: Text(_operatorLabel(op),
+                                style: const TextStyle(fontSize: 13))))
+                        .toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        state['operator'] = val;
+                        state['value'] = null;
+                        state['value2'] = null;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (selectedOp != null && !isNullOp) ...[
+                  Expanded(child: _buildFilterInput(context, tableName, key, type, 'value', state)),
+                  if (selectedOp == 'between') ...[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text('and', style: TextStyle(fontSize: 13)),
+                    ),
+                    Expanded(
+                        child: _buildFilterInput(context, tableName, key, type, 'value2', state)),
+                  ],
+                ],
+              ],
+            ),
+          );
+        }),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton.icon(
+              icon: const Icon(Icons.clear, size: 18),
+              label: const Text('Clear'),
+              onPressed: () {
+                setState(() {
+                  for (final filter in filters) {
+                    final stateKey = '${tableName}_${filter['key']}';
+                    _filterStates.remove(stateKey);
+                  }
+                  _searchResults.remove(tableName);
+                });
+              },
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              icon: isSearching
+                  ? const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.search, size: 18),
+              label: Text(isSearching ? 'Searching...' : 'Apply'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueGrey.shade700,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              ),
+              onPressed: isSearching
+                  ? null
+                  : () async {
+                      if (metaEntity == null) {
+                        // Fallback to client-side filtering
+                        setState(() {});
+                        return;
+                      }
+
+                      final searchBody =
+                          _buildSearchBody(tableName, filters);
+                      setState(() => _searchingTables.add(tableName));
+                      try {
+                        final results = await FocService()
+                            .searchItems(metaEntity, searchBody);
+                        final data = results['data'] as List<dynamic>;
+                        if (mounted) {
+                          setState(() {
+                            _searchResults[tableName] = data
+                                .map((item) => FocEntity.fromJson(
+                                    metaEntity,
+                                    item as Map<String, dynamic>))
+                                .toList();
+                            _searchingTables.remove(tableName);
+                          });
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          setState(
+                              () => _searchingTables.remove(tableName));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('Search failed: $e'),
+                                backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterInput(BuildContext context, String tableName, String key,
+      String type, String valueKey, Map<String, dynamic> state) {
+    if (type == 'date') {
+      final dateVal = state[valueKey] as DateTime?;
+      return InkWell(
+        onTap: () async {
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: dateVal ?? DateTime.now(),
+            firstDate: DateTime(2000),
+            lastDate: DateTime(2100),
+          );
+          if (picked != null) {
+            setState(() {
+              state[valueKey] = picked;
+            });
+          }
+        },
+        child: InputDecorator(
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            suffixIcon: const Icon(Icons.calendar_today, size: 16),
+          ),
+          child: Text(
+            dateVal != null
+                ? '${dateVal.year}-${dateVal.month.toString().padLeft(2, '0')}-${dateVal.day.toString().padLeft(2, '0')}'
+                : '',
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+      );
+    }
+
+    // String or numeric
+    return TextFormField(
+      initialValue: state[valueKey]?.toString() ?? '',
+      keyboardType:
+          type == 'numeric' ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        hintText: type == 'numeric' ? '0' : 'Value',
+        hintStyle: const TextStyle(fontSize: 13),
+      ),
+      style: const TextStyle(fontSize: 13),
+      onChanged: (val) {
+        state[valueKey] = val;
+      },
+    );
+  }
+
+  // ── Search API helpers ─────────────────────────────────────────────
+
+  String _formatDateForApi(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  dynamic _formatFilterValue(String type, dynamic value) {
+    if (type == 'date' && value is DateTime) {
+      return _formatDateForApi(value);
+    } else if (type == 'numeric') {
+      return num.tryParse(value.toString()) ?? value;
+    }
+    return value;
+  }
+
+  Map<String, dynamic> _buildSearchBody(
+      String tableName, List<Map<String, dynamic>> filters) {
+    final Map<String, dynamic> apiFilters = {};
+
+    for (final filter in filters) {
+      final key = filter['key'] as String;
+      final type = filter['type'] as String? ?? 'string';
+      final state = _getFilterState(tableName, key);
+      final op = state['operator'] as String?;
+      final value = state['value'];
+
+      if (op == null) continue;
+
+      // Operators that don't need a value
+      if (op == 'isNull' || op == 'isNotNull') {
+        apiFilters[key] = {'operator': op};
+        continue;
+      }
+
+      if (value == null || value.toString().isEmpty) continue;
+
+      final formattedValue = _formatFilterValue(type, value);
+
+      if (op == '=') {
+        // Simple equality - direct value
+        apiFilters[key] = formattedValue;
+      } else if (op == 'between') {
+        final value2 = state['value2'];
+        if (value2 != null && value2.toString().isNotEmpty) {
+          apiFilters[key] = {
+            'operator': 'between',
+            'from': formattedValue,
+            'to': _formatFilterValue(type, value2),
+          };
+        }
+      } else {
+        apiFilters[key] = {
+          'operator': op,
+          'value': formattedValue,
+        };
+      }
+    }
+
+    return {'filters': apiFilters};
+  }
+
+  // ── End filter helpers ────────────────────────────────────────────
 
   void _editFocEntity(FocEntity item) {
     Navigator.push(

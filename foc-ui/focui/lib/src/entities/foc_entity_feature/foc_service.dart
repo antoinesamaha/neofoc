@@ -80,6 +80,24 @@ class FocService {
     }
   }
 
+  Future<Map<String, dynamic>> searchItems(
+      MetaEntity metaEntity, Map<String, dynamic> searchBody) async {
+    String fullUrl = '$url${metaEntity.storageName}/search';
+    final response = await http.post(
+      Uri.parse(fullUrl),
+      headers: headers(isJson: true),
+      body: json.encode(searchBody),
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    } else {
+      final errorBody = json.decode(response.body);
+      final message = errorBody['message'] ?? 'Search failed';
+      throw Exception(message);
+    }
+  }
+
   Future<void> deleteItem(MetaEntity metaEntity, int itemId) async {
     String fullUrl = '$url${metaEntity.storageName}/$itemId';
     final response = await http.delete(
