@@ -563,6 +563,13 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
 
       case 'data_table':
         final columnsData = fieldData['columns'] as List<dynamic>? ?? [];
+        final tableOptions =
+            fieldData['table_options'] as Map<String, dynamic>? ?? {};
+        final showAddButton = tableOptions['showAddButton'] ?? true;
+        final showEditButton = tableOptions['showEditButton'] ?? true;
+        final showDeleteButton = tableOptions['showDeleteButton'] ?? true;
+        final showActionsColumn =
+            showEditButton == true || showDeleteButton == true;
 
         var tableMetaEntity = widget.metaEntity;
 
@@ -598,9 +605,10 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
               )),
           ...widget.state
               .getCustomColumns(), // Add custom columns from subclass
-          const DataColumn(
-            label: Text('Actions'),
-          ),
+          if (showActionsColumn)
+            const DataColumn(
+              label: Text('Actions'),
+            ),
         ];
 
         final rows = rowsData.map<DataRow>((row) {
@@ -616,24 +624,27 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
             }),
             ...widget.state
                 .getCustomDataCells(row), // Add custom data cells from subclass
-            DataCell(Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.open_in_new),
-                  tooltip: 'Open',
-                  onPressed: () {
-                    _editFocEntity(row);
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete),
-                  tooltip: 'Delete',
-                  onPressed: () {
-                    _deleteFocEntity(row);
-                  },
-                ),
-              ],
-            )),
+            if (showActionsColumn)
+              DataCell(Row(
+                children: [
+                  if (showEditButton == true)
+                    IconButton(
+                      icon: const Icon(Icons.open_in_new),
+                      tooltip: 'Open',
+                      onPressed: () {
+                        _editFocEntity(row);
+                      },
+                    ),
+                  if (showDeleteButton == true)
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      tooltip: 'Delete',
+                      onPressed: () {
+                        _deleteFocEntity(row);
+                      },
+                    ),
+                ],
+              )),
           ];
           return DataRow(cells: cells);
         }).toList();
@@ -641,39 +652,41 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add ++'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 22, vertical: 14),
-                    textStyle: const TextStyle(fontSize: 16),
-                    elevation: 0,
-                  ),
-                  onPressed: () {
-                    // Open empty details view for new item
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FocDetailsView(
-                          metaEntity: tableMetaEntity!, //widget.metaEntity!,
-                          itemId: null, // null means create new
-                        ),
+            if (showAddButton == true) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add ++'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
                       ),
-                    );
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 22, vertical: 14),
+                      textStyle: const TextStyle(fontSize: 16),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      // Open empty details view for new item
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FocDetailsView(
+                            metaEntity: tableMetaEntity!, //widget.metaEntity!,
+                            itemId: null, // null means create new
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
             Container(
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.grey.shade400, width: 1.2),
