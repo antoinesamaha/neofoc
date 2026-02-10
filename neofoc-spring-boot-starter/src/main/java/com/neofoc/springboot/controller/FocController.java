@@ -962,11 +962,10 @@ public class FocController {
 
             int totalCount = list.size();
 
-            // If pagination is applied, get total count without pagination
-            if (filterRequest.getPagination() != null && list.getFilter() != null) {
-                // For paginated results, the size might be limited by pagination
-                // In a full implementation, you'd do a separate COUNT query here
-                totalCount = list.size(); // This is the filtered count
+            // If pagination is applied, get total count via COUNT query (not page size)
+            if (filterRequest.getPagination() != null && list.getFilter() != null
+                    && list.getFilter().getOffset() >= 0 && list.getFilter().getOffsetCount() >= 0) {
+                totalCount = requestTotalCount(list);
             }
 
             String responseBody = "{ \"data\":" + userJson + ", \"totalCount\":" + totalCount + "}";

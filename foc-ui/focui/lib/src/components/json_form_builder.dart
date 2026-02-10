@@ -83,6 +83,12 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   // Tables currently running a search
   final Set<String> _searchingTables = {};
 
+  // Pagination state keyed by table field name
+  // Each value: { 'start': int, 'count': int, 'totalCount': int, 'currentPage': int }
+  final Map<String, Map<String, int>> _paginationStates = {};
+  // Track tables that have already scheduled their initial paginated load
+  final Set<String> _initialLoadScheduled = {};
+
   @override
   void initState() {
     super.initState();
@@ -580,6 +586,11 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         final showActionsColumn =
             showEditButton == true || showDeleteButton == true;
 
+        // Parse pagination config
+        final paginationConfig =
+            tableOptions['pagination'] as Map<String, dynamic>?;
+        final paginationEnabled = paginationConfig != null;
+
         var tableMetaEntity = widget.metaEntity;
 
         // Try to get rows from multiple sources in priority order:
@@ -612,9 +623,25 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
             ?.map((f) => f as Map<String, dynamic>)
             .toList();
 
+        // Initialize pagination and trigger initial load if enabled
+        if (paginationEnabled && tableMetaEntity != null) {
+          _initPaginationState(name, paginationConfig);
+          if (!_searchResults.containsKey(name) &&
+              !_searchingTables.contains(name) &&
+              !_initialLoadScheduled.contains(name)) {
+            _initialLoadScheduled.add(name);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _performPaginatedSearch(name, filtersData, tableMetaEntity!);
+            });
+          }
+        }
+
         // Use server-side search results if available, otherwise fallback to client-side
         if (_searchResults.containsKey(name)) {
           rowsData = _searchResults[name]!;
+        } else if (paginationEnabled) {
+          // Pagination enabled but no results yet - show empty while loading
+          rowsData = [];
         } else if (filtersData != null &&
             filtersData.isNotEmpty &&
             tableMetaEntity == null) {
@@ -736,6 +763,10 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                 ),
               ),
             ),
+            if (paginationEnabled && _paginationStates.containsKey(name)) ...[
+              const SizedBox(height: 8),
+              _buildPaginationBar(name, filtersData, tableMetaEntity),
+            ],
           ],
         );
 
@@ -987,6 +1018,199 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     };
   }
 
+  /// Initializes pagination state from the JSON table_options config.
+  void _initPaginationState(String tableName, Map<String, dynamic> paginationConfig) {
+    if (_paginationStates.containsKey(tableName)) return;
+    final defaultPageSize = paginationConfig['defaultPageSize'] as int? ?? 50;
+    _paginationStates[tableName] = {
+      'start': 0,
+      'count': defaultPageSize,
+      'totalCount': 0,
+      'currentPage': 1,
+    };
+  }
+
+  /// Performs a server-side search with both filters and pagination
+  Future<void> _performPaginatedSearch(
+      String tableName,
+      List<Map<String, dynamic>>? filtersData,
+      MetaEntity metaEntity) async {
+    final paginationState = _paginationStates[tableName];
+    if (paginationState == null) return;
+
+    Map<String, dynamic> searchBody;
+    if (filtersData != null && filtersData.isNotEmpty) {
+      searchBody = _buildSearchBody(tableName, filtersData);
+    } else {
+      searchBody = {'filters': {}};
+    }
+
+    searchBody['pagination'] = {
+      'start': paginationState['start'],
+      'count': paginationState['count'],
+    };
+
+    setState(() => _searchingTables.add(tableName));
+    try {
+      final results = await FocService().searchItems(metaEntity, searchBody);
+      final data = results['data'] as List<dynamic>;
+      final totalCount = results['totalCount'] as int? ?? data.length;
+      if (mounted) {
+        setState(() {
+          _searchResults[tableName] = data
+              .map((item) =>
+                  FocEntity.fromJson(metaEntity, item as Map<String, dynamic>))
+              .toList();
+          paginationState['totalCount'] = totalCount;
+          _searchingTables.remove(tableName);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _searchingTables.remove(tableName));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Search failed: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Widget _buildPaginationBar(
+      String tableName,
+      List<Map<String, dynamic>>? filtersData,
+      MetaEntity? metaEntity) {
+    final state = _paginationStates[tableName]!;
+    final currentPage = state['currentPage']!;
+    final pageSize = state['count']!;
+    final totalCount = state['totalCount']!;
+    final totalPages =
+        totalCount > 0 ? ((totalCount + pageSize - 1) ~/ pageSize) : 1;
+    final isSearching = _searchingTables.contains(tableName);
+    final pageSizeOptions = [10, 25, 50, 100];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Page size selector
+          Row(
+            children: [
+              const Text('Rows per page: ', style: TextStyle(fontSize: 13)),
+              DropdownButton<int>(
+                value: pageSizeOptions.contains(pageSize)
+                    ? pageSize
+                    : pageSizeOptions.first,
+                underline: const SizedBox(),
+                style: const TextStyle(fontSize: 13, color: Colors.black),
+                items: pageSizeOptions
+                    .map((size) =>
+                        DropdownMenuItem(value: size, child: Text('$size')))
+                    .toList(),
+                onChanged: isSearching
+                    ? null
+                    : (newSize) {
+                        if (newSize != null && metaEntity != null) {
+                          setState(() {
+                            state['count'] = newSize;
+                            state['start'] = 0;
+                            state['currentPage'] = 1;
+                          });
+                          _performPaginatedSearch(
+                              tableName, filtersData, metaEntity);
+                        }
+                      },
+              ),
+            ],
+          ),
+          // Info text
+          Text(
+            '${totalCount > 0 ? state['start']! + 1 : 0}-'
+            '${(state['start']! + pageSize).clamp(0, totalCount)}'
+            ' of $totalCount',
+            style: const TextStyle(fontSize: 13, color: Colors.grey),
+          ),
+          // Navigation buttons
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.first_page, size: 20),
+                tooltip: 'First page',
+                onPressed:
+                    (isSearching || currentPage <= 1 || metaEntity == null)
+                        ? null
+                        : () {
+                            setState(() {
+                              state['currentPage'] = 1;
+                              state['start'] = 0;
+                            });
+                            _performPaginatedSearch(
+                                tableName, filtersData, metaEntity);
+                          },
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_left, size: 20),
+                tooltip: 'Previous page',
+                onPressed:
+                    (isSearching || currentPage <= 1 || metaEntity == null)
+                        ? null
+                        : () {
+                            setState(() {
+                              state['currentPage'] = currentPage - 1;
+                              state['start'] = (currentPage - 2) * pageSize;
+                            });
+                            _performPaginatedSearch(
+                                tableName, filtersData, metaEntity);
+                          },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  'Page $currentPage of $totalPages',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right, size: 20),
+                tooltip: 'Next page',
+                onPressed: (isSearching ||
+                        currentPage >= totalPages ||
+                        metaEntity == null)
+                    ? null
+                    : () {
+                        setState(() {
+                          state['currentPage'] = currentPage + 1;
+                          state['start'] = currentPage * pageSize;
+                        });
+                        _performPaginatedSearch(
+                            tableName, filtersData, metaEntity);
+                      },
+              ),
+              IconButton(
+                icon: const Icon(Icons.last_page, size: 20),
+                tooltip: 'Last page',
+                onPressed: (isSearching ||
+                        currentPage >= totalPages ||
+                        metaEntity == null)
+                    ? null
+                    : () {
+                        setState(() {
+                          state['currentPage'] = totalPages;
+                          state['start'] = (totalPages - 1) * pageSize;
+                        });
+                        _performPaginatedSearch(
+                            tableName, filtersData, metaEntity);
+                      },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   List<dynamic> _applyFilters(
       String tableName, List<Map<String, dynamic>> filters, List<dynamic> rows) {
     return rows.where((row) {
@@ -1179,7 +1403,18 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                     _filterStates.remove(stateKey);
                   }
                   _searchResults.remove(tableName);
+                  // Reset pagination to page 1 on clear
+                  final paginationState = _paginationStates[tableName];
+                  if (paginationState != null) {
+                    paginationState['start'] = 0;
+                    paginationState['currentPage'] = 1;
+                  }
                 });
+                // Re-fetch with pagination (no filters)
+                final paginationState = _paginationStates[tableName];
+                if (paginationState != null && metaEntity != null) {
+                  _performPaginatedSearch(tableName, null, metaEntity);
+                }
               },
             ),
             const SizedBox(width: 8),
@@ -1208,6 +1443,17 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                         return;
                       }
 
+                      // Reset pagination to page 1 when filters change
+                      final paginationState = _paginationStates[tableName];
+                      if (paginationState != null) {
+                        paginationState['start'] = 0;
+                        paginationState['currentPage'] = 1;
+                        await _performPaginatedSearch(
+                            tableName, filters, metaEntity);
+                        return;
+                      }
+
+                      // Non-paginated search (original logic)
                       final searchBody =
                           _buildSearchBody(tableName, filters);
                       setState(() => _searchingTables.add(tableName));

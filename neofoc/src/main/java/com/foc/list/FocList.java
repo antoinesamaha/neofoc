@@ -2638,7 +2638,11 @@ public class FocList extends AccessSubject implements IFocList {
 	}
 
 	public int requestCount() {
-		return requestCount("\""+FField.REF_FIELD_NAME+"\"");
+		FocDesc focDesc = getFocDesc();
+		String idDBName = (focDesc != null && focDesc.getIdentifierField() != null)
+			? focDesc.getIdentifierField().getDBName()
+			: FField.REF_FIELD_NAME;
+		return requestCount("\""+idDBName+"\"");
 	}
 	
 	public int requestCount(String fieldName) {
