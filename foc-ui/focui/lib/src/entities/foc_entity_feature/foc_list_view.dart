@@ -23,12 +23,69 @@ class FocListView extends StatefulWidget {
 
 class FocListViewState extends JsonFormState<FocListView> {
   final _formKey = GlobalKey<FormBuilderState>();
-  late Future<List<FocEntity>> futureItems;
+  late Future<Widget> _formFuture;
 
   @override
   void initState() {
     super.initState();
-    futureItems = FocService().fetchItems(widget.metaEntity);
+    _formFuture = _buildEntityForm();
+  }
+
+  /// Builds the form widget, conditionally skipping the GET call
+  /// when pagination is enabled (JsonFormBuilder handles its own loading).
+  Future<Widget> _buildEntityForm() async {
+    String entityFormFile =
+        'assets/forms/${widget.metaEntity.name.toLowerCase().replaceAll(' ', '_')}_list.json';
+    try {
+      final jsonString = await rootBundle.loadString(entityFormFile);
+      final formData =
+          json.decode(jsonString) as Map<String, dynamic>;
+
+      // Check if any data_table field has pagination enabled
+      bool hasPagination = _hasPaginationInForm(formData);
+
+      // Only fetch all items when pagination is NOT enabled
+      List<FocEntity> focEntityList = hasPagination
+          ? []
+          : await FocService().fetchItems(widget.metaEntity);
+
+      return JsonFormBuilder(
+        metaEntity: widget.metaEntity,
+        focEntityList: focEntityList,
+        assetPath: entityFormFile,
+        formData: formData,
+        formKey: _formKey,
+        onChanged: (values) {
+          // Handle form changes if needed
+        },
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        state: this,
+      );
+    } catch (e) {
+      // Fallback to the original form builder if no JSON form is available
+      final focEntityList =
+          await FocService().fetchItems(widget.metaEntity);
+      return defaultEntityListForm(focEntityList);
+    }
+  }
+
+  /// Checks if any data_table field in the form JSON has pagination enabled
+  bool _hasPaginationInForm(Map<String, dynamic> formData) {
+    final fields = formData['fields'] as List<dynamic>? ?? [];
+    for (var field in fields) {
+      if (field is Map<String, dynamic> && field['type'] == 'data_table') {
+        final tableOptions =
+            field['table_options'] as Map<String, dynamic>? ?? {};
+        if (tableOptions['pagination'] != null) return true;
+      }
+    }
+    return false;
+  }
+
+  void refreshData() {
+    setState(() {
+      _formFuture = _buildEntityForm();
+    });
   }
 
   void editItem(FocEntity item) {
@@ -40,9 +97,7 @@ class FocListViewState extends JsonFormState<FocListView> {
       ),
     ).then((updatedItem) {
       if (updatedItem != null) {
-        setState(() {
-          futureItems = FocService().fetchItems(widget.metaEntity);
-        });
+        refreshData();
       }
     });
   }
@@ -71,66 +126,24 @@ class FocListViewState extends JsonFormState<FocListView> {
           ),
         ],
       ),
-      body: FutureBuilder<List<FocEntity>>(
-        future: futureItems,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-            // } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            //   return const Center(child: Text('No items found'));
-          } else {
-            final List<FocEntity> focEntityList = snapshot.data!;
-
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: FutureBuilder<Widget>(
-                future: entityListForm(focEntityList),
-                builder: (context, formSnapshot) {
-                  if (formSnapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (formSnapshot.hasError) {
-                    return Center(
-                        child:
-                            Text('Error loading form: ${formSnapshot.error}'));
-                  } else if (formSnapshot.hasData) {
-                    return formSnapshot.data!;
-                  } else {
-                    return const Center(child: Text('No form available'));
-                  }
-                },
-              ),
-            );
-          }
-        },
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: FutureBuilder<Widget>(
+          future: _formFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            } else if (snapshot.hasData) {
+              return snapshot.data!;
+            } else {
+              return const Center(child: Text('No form available'));
+            }
+          },
+        ),
       ),
     );
-  }
-
-  Future<Widget> entityListForm(List<FocEntity> focEntityList) async {
-    // Try to load a form file matching the entity name
-    String entityFormFile =
-        'assets/forms/${widget.metaEntity.name.toLowerCase().replaceAll(' ', '_')}_list.json';
-    try {
-      final jsonString = await rootBundle.loadString(entityFormFile);
-      final formData = json.decode(jsonString);
-      return JsonFormBuilder(
-        metaEntity: widget.metaEntity,
-        focEntityList: focEntityList,
-        assetPath: entityFormFile,
-        formData: formData,
-        formKey: _formKey,
-        onChanged: (values) {
-          // Handle form changes if needed
-        },
-        autovalidateMode: AutovalidateMode.onUserInteraction,
-        state: this,
-      );
-    } catch (e) {
-      // Fallback to the original form builder if no JSON form is available
-      return defaultEntityListForm(focEntityList);
-    }
   }
 
   Widget defaultEntityListForm(List<FocEntity> focEntityList) {
@@ -172,10 +185,7 @@ class FocListViewState extends JsonFormState<FocListView> {
                       ),
                     ).then((newItem) {
                       if (newItem != null) {
-                        setState(() {
-                          futureItems =
-                              FocService().fetchItems(widget.metaEntity);
-                        });
+                        refreshData();
                       }
                     });
                   },

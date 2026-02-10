@@ -968,7 +968,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   List<String> _getOperatorsForType(String type) {
     switch (type) {
       case 'string':
-        return ['contains', 'like', '=', '!=', 'isNull', 'isNotNull'];
+        return ['contains', '=', '!=', 'isNull', 'isNotNull'];
       case 'numeric':
         return ['=', '>=', '<=', '>', '<', '!=', 'between', 'isNull', 'isNotNull'];
       case 'date':
