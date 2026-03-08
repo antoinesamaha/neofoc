@@ -576,6 +576,15 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           style: _getTextStyle(fieldData['style'] as Map<String, dynamic>?),
         );
 
+      case 'json':
+        return _buildJsonField(
+          name: name,
+          decoration: decoration,
+          enabled: enabled,
+          validators: validators,
+          label: label,
+        );
+
       case 'data_table':
         final columnsData = fieldData['columns'] as List<dynamic>? ?? [];
         final tableOptions =
@@ -593,6 +602,12 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
 
         var tableMetaEntity = widget.metaEntity;
 
+        // Check for meta_entity in field definition - this determines what form to open for Add/Edit
+        if (fieldData['meta_entity'] != null) {
+          tableMetaEntity =
+              MetaService().getEntityByName(fieldData['meta_entity']);
+        }
+
         // Try to get rows from multiple sources in priority order:
         // 1. Explicit rows in fieldData
         // 2. widget.focEntityList
@@ -607,10 +622,6 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           final fieldValue = widget.focEntity!.properties[name];
           if (fieldValue is List) {
             rowsData = fieldValue;
-            if (fieldData['meta_entity'] != null) {
-              tableMetaEntity =
-                  MetaService().getEntityByName(fieldData['meta_entity']);
-            }
           } else {
             rowsData = [];
           }
@@ -713,7 +724,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                 children: [
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add),
-                    label: const Text('Add ++'),
+                    label: const Text('Add'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
@@ -779,6 +790,119 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         }
         return null;
     }
+  }
+
+  Widget _buildJsonField({
+    required String name,
+    required InputDecoration decoration,
+    required bool enabled,
+    required List<String? Function(String?)> validators,
+    String? label,
+  }) {
+    // Convert initial value to JSON string if it's a Map (e.g., from JSONB backend field)
+    final rawInitial = widget.initialValues?[name];
+    String? initialValue;
+    if (rawInitial is Map || rawInitial is List) {
+      initialValue = const JsonEncoder.withIndent('  ').convert(rawInitial);
+    } else if (rawInitial is String) {
+      initialValue = rawInitial;
+    }
+
+    return FormBuilderTextField(
+      name: name,
+      initialValue: initialValue,
+      decoration: decoration.copyWith(
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.code, size: 20),
+          tooltip: 'Format JSON',
+          onPressed: enabled
+              ? () {
+                  final currentValue = _formKey.currentState?.fields[name]?.value as String?;
+                  if (currentValue != null && currentValue.isNotEmpty) {
+                    try {
+                      // Convert single quotes to double quotes first
+                      final normalized = _normalizeJsonQuotes(currentValue);
+
+                      // Parse and prettify
+                      final decoded = json.decode(normalized);
+                      final prettified = const JsonEncoder.withIndent('  ').convert(decoded);
+
+                      // Update field with prettified JSON (always uses double quotes)
+                      _formKey.currentState?.fields[name]?.didChange(prettified);
+                    } catch (e) {
+                      if (widget.enableDebug) {
+                        debugPrint('JSON prettify error: $e');
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Invalid JSON: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  }
+                }
+              : null,
+        ),
+        helperText: "JSON format (accepts ' or \", outputs standard JSON with \")",
+      ),
+      enabled: enabled,
+      maxLines: null,
+      minLines: 5,
+      style: const TextStyle(
+        fontFamily: 'monospace',
+        fontSize: 13,
+      ),
+      validator: FormBuilderValidators.compose([
+        ...validators,
+        (value) {
+          if (value == null || value.isEmpty) return null;
+          try {
+            // Try parsing with normalized quotes
+            final normalized = _normalizeJsonQuotes(value);
+            json.decode(normalized);
+            return null;
+          } catch (e) {
+            return 'Invalid JSON: ${e.toString()}';
+          }
+        },
+      ]),
+      valueTransformer: (value) {
+        if (value == null || value.isEmpty) return null;
+        try {
+          // Validate and return as string
+          final normalized = _normalizeJsonQuotes(value);
+          json.decode(normalized);
+          return value; // Return original format
+        } catch (e) {
+          return value;
+        }
+      },
+    );
+  }
+
+  /// Converts single quotes to double quotes for JSON parsing
+  /// Handles FOC ORM convention where properties use single quotes
+  /// Also fixes common malformations like unclosed quotes for empty strings
+  String _normalizeJsonQuotes(String jsonString) {
+    String normalized = jsonString;
+
+    // Fix malformed empty strings: :" followed by comma or } should be :""
+    normalized = normalized.replaceAll(RegExp(r':"([,}\]])'), r':""$1');
+
+    // Fix malformed empty strings with single quotes: :" followed by comma or } should be :''
+    // This pattern catches cases like 'notes':", which should be 'notes':''
+    normalized = normalized.replaceAll(RegExp(r":'([,}\]])"), r":''$1");
+
+    // If it already uses double quotes (standard JSON), just return after fixes
+    if (!normalized.contains("'")) {
+      return normalized;
+    }
+
+    // Convert single quotes to double quotes for JSON parsing
+    // This works for most cases where single quotes are used for keys and string values
+    return normalized.replaceAll("'", '"');
   }
 
   List<String? Function(String?)> _buildValidators(
@@ -970,7 +1094,17 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       case 'string':
         return ['contains', '=', '!=', 'isNull', 'isNotNull'];
       case 'numeric':
-        return ['=', '>=', '<=', '>', '<', '!=', 'between', 'isNull', 'isNotNull'];
+        return [
+          '=',
+          '>=',
+          '<=',
+          '>',
+          '<',
+          '!=',
+          'between',
+          'isNull',
+          'isNotNull'
+        ];
       case 'date':
         return ['=', '>=', '<=', 'between', 'isNull', 'isNotNull'];
       default:
@@ -1019,7 +1153,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   }
 
   /// Initializes pagination state from the JSON table_options config.
-  void _initPaginationState(String tableName, Map<String, dynamic> paginationConfig) {
+  void _initPaginationState(
+      String tableName, Map<String, dynamic> paginationConfig) {
     if (_paginationStates.containsKey(tableName)) return;
     final defaultPageSize = paginationConfig['defaultPageSize'] as int? ?? 50;
     _paginationStates[tableName] = {
@@ -1031,10 +1166,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   }
 
   /// Performs a server-side search with both filters and pagination
-  Future<void> _performPaginatedSearch(
-      String tableName,
-      List<Map<String, dynamic>>? filtersData,
-      MetaEntity metaEntity) async {
+  Future<void> _performPaginatedSearch(String tableName,
+      List<Map<String, dynamic>>? filtersData, MetaEntity metaEntity) async {
     final paginationState = _paginationStates[tableName];
     if (paginationState == null) return;
 
@@ -1070,17 +1203,14 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         setState(() => _searchingTables.remove(tableName));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Search failed: $e'),
-              backgroundColor: Colors.red),
+              content: Text('Search failed: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  Widget _buildPaginationBar(
-      String tableName,
-      List<Map<String, dynamic>>? filtersData,
-      MetaEntity? metaEntity) {
+  Widget _buildPaginationBar(String tableName,
+      List<Map<String, dynamic>>? filtersData, MetaEntity? metaEntity) {
     final state = _paginationStates[tableName]!;
     final currentPage = state['currentPage']!;
     final pageSize = state['count']!;
@@ -1211,8 +1341,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     );
   }
 
-  List<dynamic> _applyFilters(
-      String tableName, List<Map<String, dynamic>> filters, List<dynamic> rows) {
+  List<dynamic> _applyFilters(String tableName,
+      List<Map<String, dynamic>> filters, List<dynamic> rows) {
     return rows.where((row) {
       for (final filter in filters) {
         final key = filter['key'] as String;
@@ -1271,8 +1401,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
             if (cellDate == null || valDate == null) return false;
             final cellDay =
                 DateTime(cellDate.year, cellDate.month, cellDate.day);
-            final valDay =
-                DateTime(valDate.year, valDate.month, valDate.day);
+            final valDay = DateTime(valDate.year, valDate.month, valDate.day);
             switch (op) {
               case 'equals':
                 if (cellDay != valDay) return false;
@@ -1299,8 +1428,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     }).toList();
   }
 
-  Widget _buildFilterSection(
-      BuildContext context, String tableName,
+  Widget _buildFilterSection(BuildContext context, String tableName,
       List<Map<String, dynamic>> filters, MetaEntity? metaEntity) {
     final isSearching = _searchingTables.contains(tableName);
     return ExpansionTile(
@@ -1357,7 +1485,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8)),
                     ),
-                    hint: const Text('Operator', style: TextStyle(fontSize: 13)),
+                    hint:
+                        const Text('Operator', style: TextStyle(fontSize: 13)),
                     items: operators
                         .map((op) => DropdownMenuItem(
                             value: op,
@@ -1375,14 +1504,17 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                 ),
                 const SizedBox(width: 8),
                 if (selectedOp != null && !isNullOp) ...[
-                  Expanded(child: _buildFilterInput(context, tableName, key, type, 'value', state)),
+                  Expanded(
+                      child: _buildFilterInput(
+                          context, tableName, key, type, 'value', state)),
                   if (selectedOp == 'between') ...[
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8),
                       child: Text('and', style: TextStyle(fontSize: 13)),
                     ),
                     Expanded(
-                        child: _buildFilterInput(context, tableName, key, type, 'value2', state)),
+                        child: _buildFilterInput(
+                            context, tableName, key, type, 'value2', state)),
                   ],
                 ],
               ],
@@ -1421,7 +1553,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
             ElevatedButton.icon(
               icon: isSearching
                   ? const SizedBox(
-                      width: 18, height: 18,
+                      width: 18,
+                      height: 18,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.search, size: 18),
@@ -1454,8 +1587,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                       }
 
                       // Non-paginated search (original logic)
-                      final searchBody =
-                          _buildSearchBody(tableName, filters);
+                      final searchBody = _buildSearchBody(tableName, filters);
                       setState(() => _searchingTables.add(tableName));
                       try {
                         final results = await FocService()
@@ -1465,16 +1597,14 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                           setState(() {
                             _searchResults[tableName] = data
                                 .map((item) => FocEntity.fromJson(
-                                    metaEntity,
-                                    item as Map<String, dynamic>))
+                                    metaEntity, item as Map<String, dynamic>))
                                 .toList();
                             _searchingTables.remove(tableName);
                           });
                         }
                       } catch (e) {
                         if (mounted) {
-                          setState(
-                              () => _searchingTables.remove(tableName));
+                          setState(() => _searchingTables.remove(tableName));
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                                 content: Text('Search failed: $e'),
@@ -1533,8 +1663,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           type == 'numeric' ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         hintText: type == 'numeric' ? '0' : 'Value',
         hintStyle: const TextStyle(fontSize: 13),
