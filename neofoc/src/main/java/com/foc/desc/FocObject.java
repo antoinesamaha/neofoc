@@ -4786,6 +4786,13 @@ public abstract class FocObject extends AccessSubject implements FocListener, IF
 				FocList list = ((FList) prop).getList();
 				builder.appendKey(fieldName);
 				list.toJson(builder);
+			} else if (prop instanceof com.foc.property.FJsonProperty) {
+				if (prop.isValueNull()) {
+					builder.appendKey(fieldName);
+					builder.appendNullValue();
+				} else {
+					builder.appendRawJsonKeyValue(fieldName, prop.getString());
+				}
 			} else if (prop instanceof FString) {
 				if (prop.isValueNull()) {
 					builder.appendKey(fieldName);

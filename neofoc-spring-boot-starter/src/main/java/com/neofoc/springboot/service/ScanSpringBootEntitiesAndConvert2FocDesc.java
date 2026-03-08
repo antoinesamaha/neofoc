@@ -126,6 +126,9 @@ public class ScanSpringBootEntitiesAndConvert2FocDesc {
                 } else if (attributeClass == Boolean.class) {
                     FBoolField fld = new FBoolField(fieldName, title, fieldID++, !isNullable);
                     focDesc.addField(fld);
+                } else if (attributeClass == Map.class) {
+                    FJsonField fld = new FJsonField(fieldName, title, fieldID++, !isNullable);
+                    focDesc.addField(fld);
                 } else if (attributeClass == Set.class) {
                     if (att instanceof PluralAttribute) {
                         try {
