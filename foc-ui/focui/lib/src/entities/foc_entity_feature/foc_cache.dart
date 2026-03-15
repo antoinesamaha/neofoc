@@ -15,6 +15,12 @@ class FocCache {
     };
   }
 
+  void put(String storageName, FocEntity entity) {
+    if (entity.id == null) return;
+    _store[storageName] ??= {};
+    _store[storageName]![entity.id as int] = entity;
+  }
+
   FocEntity? get(String storageName, int id) {
     return _store[storageName]?[id];
   }

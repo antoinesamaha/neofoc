@@ -163,6 +163,11 @@ public class ScanSpringBootEntitiesAndConvert2FocDesc {
                     String tableNameForAttributeClass = ASCII.convertJavaClassNameTo_SmallLettersWith_(simpleAttributeClassName);
 
                     FObjectField fld = new FObjectField(fieldName, title, fieldID++, false, null, fieldName+"_", null, 0, null, false);
+                    if (isNullable) {
+                        fld.setNullValueMode(FObjectField.NULL_VALUE_ALLOWED_AND_SHOWN);
+                    } else {
+                        fld.setNullValueMode(FObjectField.NULL_VALUE_NOT_ALLOWED);
+                    }
                     fld.setFocDescStorageName(tableNameForAttributeClass, false, false);
                     focDesc.addField(fld);
                 }

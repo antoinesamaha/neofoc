@@ -51,25 +51,13 @@ class FocService {
         .where((f) => f.name == fieldName)
         .firstOrNull;
 
-    if (metaField == null) {
-      print('[resolveField] metaField "$fieldName" not found in ${entity.metaEntity.name}. Known fields: ${entity.metaEntity.fields.map((f) => f.name).toList()}');
-      return null;
-    }
-    if (!metaField.isForeignKey) {
-      print('[resolveField] "$fieldName" has no storageName (not a FK)');
-      return null;
-    }
+    if (metaField == null) return null;
+    if (!metaField.isForeignKey) return null;
 
     final rawValue = entity[fieldName];
-    if (rawValue == null) {
-      print('[resolveField] "$fieldName" value is null');
-      return null;
-    }
+    if (rawValue == null) return null;
     final id = rawValue is int ? rawValue : int.tryParse(rawValue.toString());
-    if (id == null) {
-      print('[resolveField] "$fieldName" value "$rawValue" is not a valid id');
-      return null;
-    }
+    if (id == null) return null;
 
     final storageName = metaField.storageName!;
 
@@ -78,16 +66,14 @@ class FocService {
     }
 
     final referencedMeta = MetaService().getEntityByName(storageName);
-    if (referencedMeta == null) {
-      print('[resolveField] MetaEntity "$storageName" not found in MetaService');
-      return null;
+    if (referencedMeta == null) return null;
+
+    if (referencedMeta.isListInCache) {
+      await fetchItems(referencedMeta);
+      return FocCache().get(storageName, id);
     }
 
-    final fetched = await fetchItemDetails(referencedMeta, id.toString());
-    if (referencedMeta.isListInCache) {
-      FocCache().populate(storageName, [fetched]);
-    }
-    return fetched;
+    return await fetchItemDetails(referencedMeta, id.toString());
   }
 
   Future<FocEntity> fetchItemDetails(

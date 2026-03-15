@@ -904,7 +904,11 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
 
     if (entity == null) return const Text('');
 
-    final cacheKey = '${fieldName}_${entity.id}';
+    // If the FK value is null, nothing to resolve
+    final rawFkId = entity[fieldName];
+    if (rawFkId == null) return const Text('');
+
+    final cacheKey = '${fieldName}_$rawFkId';
 
     if (_resolvedCache.containsKey(cacheKey)) {
       return Text(_resolvedCache[cacheKey]![nestedProp]?.toString() ?? '');
