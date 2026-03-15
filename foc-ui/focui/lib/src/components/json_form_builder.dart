@@ -89,6 +89,9 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   // Track tables that have already scheduled their initial paginated load
   final Set<String> _initialLoadScheduled = {};
 
+  // Resolved foreign key cache: "fieldName_rowId" → FocEntity
+  final Map<String, FocEntity> _resolvedCache = {};
+
   @override
   void initState() {
     super.initState();
@@ -682,7 +685,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                       row[key] ? Icons.check_circle : Icons.cancel,
                       color: row[key] ? Colors.green : Colors.red,
                     )
-                  : Text(row[key]?.toString() ?? ''));
+                  : _buildCellValue(row, key, tableMetaEntity));
             }),
             ...widget.state
                 .getCustomDataCells(row), // Add custom data cells from subclass
@@ -880,6 +883,40 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         }
       },
     );
+  }
+
+  Widget _buildCellValue(dynamic row, String key, MetaEntity? metaEntity) {
+    if (!key.contains('.')) {
+      return Text(row[key]?.toString() ?? '');
+    }
+
+    final parts = key.split('.');
+    final fieldName = parts[0];
+    final nestedProp = parts[1];
+
+    // Wrap raw map into FocEntity if we have the meta
+    FocEntity? entity;
+    if (row is FocEntity) {
+      entity = row;
+    } else if (row is Map<String, dynamic> && metaEntity != null) {
+      entity = FocEntity(metaEntity, row);
+    }
+
+    if (entity == null) return const Text('');
+
+    final cacheKey = '${fieldName}_${entity.id}';
+
+    if (_resolvedCache.containsKey(cacheKey)) {
+      return Text(_resolvedCache[cacheKey]![nestedProp]?.toString() ?? '');
+    }
+
+    FocService().resolveField(entity, fieldName).then((resolved) {
+      if (resolved != null && mounted) {
+        setState(() => _resolvedCache[cacheKey] = resolved);
+      }
+    });
+
+    return const Text('...');
   }
 
   /// Converts single quotes to double quotes for JSON parsing

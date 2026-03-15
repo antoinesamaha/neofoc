@@ -4716,13 +4716,17 @@ public abstract class FocObject extends AccessSubject implements FocListener, IF
 				FObject objProp = (FObject) prop;
 				if (builder.isPrintForeignKeyFullObject() && !isFieldCreationField(fieldName)) {
 					FocObject valueObj = objProp.getObject_CreateIfNeeded();
-					if (valueObj != null && !builder.containsMasterObject(valueObj.buildJsonKey())) {
+					boolean isCacheable = valueObj != null && valueObj.getThisFocDesc() != null && valueObj.getThisFocDesc().isListInCache();
+					if (valueObj != null && !isCacheable && !builder.containsMasterObject(valueObj.buildJsonKey())) {
 						builder.appendKey(fieldName);
 						B01JsonBuilder newBuilder = new B01JsonBuilder(builder);
 						valueObj.toJson_Embedded(newBuilder);
 						String objStr = newBuilder.toString();
 						builder.append(objStr);
 						newBuilder.dispose();
+					} else if (valueObj != null && isCacheable) {
+						long value = objProp.getLocalReferenceInt();
+						builder.appendKeyValue(fieldName, value);
 					}
 				} else {
 					if (builder.isPrintObjectNamesNotRefs()) {

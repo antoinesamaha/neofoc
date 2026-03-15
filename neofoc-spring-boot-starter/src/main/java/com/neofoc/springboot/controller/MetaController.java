@@ -6,6 +6,7 @@ import com.foc.business.workflow.implementation.FocWorkflowObject;
 import com.foc.controller.FocRestAPICall;
 import com.foc.desc.*;
 import com.foc.desc.field.FField;
+import com.foc.desc.field.FObjectField;
 import com.foc.list.FocList;
 import com.foc.shared.json.B01JsonBuilder;
 import com.foc.util.Utils;
@@ -56,6 +57,9 @@ public class MetaController {
                 fieldJson.put("dbName", field.getDBName());
                 fieldJson.put("sqlType", field.getSqlType());
                 fieldJson.put("type", field.getFabType());
+                if(field instanceof FObjectField objFld && objFld.getFocDesc() != null) {
+                    fieldJson.put("storageName", objFld.getFocDesc().getStorageName());
+                }
                 jsonFieldArray.put(fieldJson);
             }
             focDescJson.put("fields", jsonFieldArray);

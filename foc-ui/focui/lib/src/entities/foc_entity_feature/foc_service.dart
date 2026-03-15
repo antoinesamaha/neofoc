@@ -4,6 +4,8 @@ import 'package:focui/src/app_constants.dart';
 import 'package:http/http.dart' as http;
 
 import '../meta_feature/meta_entity.dart';
+import '../meta_feature/meta_service.dart';
+import 'foc_cache.dart';
 import 'foc_entity.dart';
 import '../../auth/auth_service.dart'; // Import AuthService
 
@@ -32,10 +34,60 @@ class FocService {
     if (response.statusCode == 200) {
       Map<String, dynamic> jsonResponse = json.decode(response.body);
       List<dynamic> data = jsonResponse['data'];
-      return data.map((item) => FocEntity.fromJson(metaEntity, item)).toList();
+      final entities = data.map((item) => FocEntity.fromJson(metaEntity, item)).toList();
+      if (metaEntity.isListInCache) {
+        FocCache().populate(metaEntity.storageName, entities);
+      }
+      return entities;
     } else {
       throw Exception('Failed to load items');
     }
+  }
+
+  /// Resolves a foreign key field on [entity] to its full [FocEntity].
+  /// Checks the cache first; falls back to a GET if not found.
+  Future<FocEntity?> resolveField(FocEntity entity, String fieldName) async {
+    final metaField = entity.metaEntity.fields
+        .where((f) => f.name == fieldName)
+        .firstOrNull;
+
+    if (metaField == null) {
+      print('[resolveField] metaField "$fieldName" not found in ${entity.metaEntity.name}. Known fields: ${entity.metaEntity.fields.map((f) => f.name).toList()}');
+      return null;
+    }
+    if (!metaField.isForeignKey) {
+      print('[resolveField] "$fieldName" has no storageName (not a FK)');
+      return null;
+    }
+
+    final rawValue = entity[fieldName];
+    if (rawValue == null) {
+      print('[resolveField] "$fieldName" value is null');
+      return null;
+    }
+    final id = rawValue is int ? rawValue : int.tryParse(rawValue.toString());
+    if (id == null) {
+      print('[resolveField] "$fieldName" value "$rawValue" is not a valid id');
+      return null;
+    }
+
+    final storageName = metaField.storageName!;
+
+    if (FocCache().has(storageName, id)) {
+      return FocCache().get(storageName, id);
+    }
+
+    final referencedMeta = MetaService().getEntityByName(storageName);
+    if (referencedMeta == null) {
+      print('[resolveField] MetaEntity "$storageName" not found in MetaService');
+      return null;
+    }
+
+    final fetched = await fetchItemDetails(referencedMeta, id.toString());
+    if (referencedMeta.isListInCache) {
+      FocCache().populate(storageName, [fetched]);
+    }
+    return fetched;
   }
 
   Future<FocEntity> fetchItemDetails(
