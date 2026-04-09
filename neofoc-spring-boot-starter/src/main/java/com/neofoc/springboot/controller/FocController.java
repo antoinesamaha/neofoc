@@ -25,8 +25,10 @@ import com.foc.controller.FocRestAPICall;
 import com.foc.desc.FocConstructor;
 import com.foc.desc.FocDesc;
 import com.foc.desc.FocDescMap;
+import com.foc.desc.FocFieldEnum;
 import com.foc.desc.FocObject;
 import com.foc.desc.field.FField;
+import com.foc.desc.field.FObjectField;
 import com.foc.list.FocList;
 import com.foc.shared.json.B01JsonBuilder;
 import com.foc.util.Utils;
@@ -578,6 +580,27 @@ public class FocController {
         return null;
     }
 
+    protected void afterPost_UpdateCacheableParents(FocObject focObj) {
+        if (focObj == null) return;
+        FocDesc childDesc = focObj.getThisFocDesc();
+        if (childDesc == null) return;
+
+        FocFieldEnum enumer = childDesc.newFocFieldEnum(FocFieldEnum.CAT_ALL, FocFieldEnum.LEVEL_PLAIN);
+        while (enumer != null && enumer.hasNext()) {
+            FField field = (FField) enumer.next();
+            if (field instanceof FObjectField) {
+                FObjectField objField = (FObjectField) field;
+                FocDesc parentDesc = objField.getFocDesc();
+                if (parentDesc != null && parentDesc.isListInCache()) {
+                    long parentRef = focObj.getPropertyObjectLocalReference(field.getName());
+                    if (parentRef > 0) {
+                        parentDesc.refreshCachedListFocObject(parentRef);
+                    }
+                }
+            }
+        }
+    }
+
     @PutMapping("obj/**")
     protected void doPut(HttpServletRequest request, HttpServletResponse response, @RequestBody String body)
             throws ServletException, IOException {
@@ -671,6 +694,7 @@ public class FocController {
                             response.getWriter().println(userJson);
                         } else {
                             // afterPost(focRequest, focObj, created);
+                            afterPost_UpdateCacheableParents(focObj);
 
                             userJson = toJsonDetails(focObj, builder);
                             // focObj.toJson(builder);

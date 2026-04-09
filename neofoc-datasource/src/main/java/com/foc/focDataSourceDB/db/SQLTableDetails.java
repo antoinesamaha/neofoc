@@ -90,6 +90,9 @@ public class SQLTableDetails extends SQLRequest {
               if(focField == null){
               	focField = FField.newField(colType, colLabel, 0, precision ==0 ? size : precision, scale, autoIncrement);
               }
+              if(focField == null){
+              	continue;
+              }
               hash.put(focField.getName(), focField);
             }
           }

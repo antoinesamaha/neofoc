@@ -42,6 +42,9 @@ class JsonFormBuilder extends StatefulWidget {
   /// Whether to show debug information
   final bool enableDebug;
 
+  /// Hidden values injected on save but not rendered in the form (e.g. parent FK)
+  final Map<String, dynamic>? hiddenValues;
+
   final JsonFormState state;
 
   const JsonFormBuilder(
@@ -58,6 +61,7 @@ class JsonFormBuilder extends StatefulWidget {
       this.autovalidateMode = AutovalidateMode.disabled,
       this.formKey,
       this.enableDebug = false,
+      this.hiddenValues,
       required this.state})
       : assert(
           formData != null || jsonString != null || assetPath != null,
@@ -91,6 +95,10 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
 
   // Resolved foreign key cache: "fieldName_rowId" → FocEntity
   final Map<String, FocEntity> _resolvedCache = {};
+
+  // Quick search per data_table: keyed by table field name
+  final Map<String, TextEditingController> _quickSearchControllers = {};
+  final Map<String, String> _quickSearchTexts = {};
 
   @override
   void initState() {
@@ -597,6 +605,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         final showDeleteButton = tableOptions['showDeleteButton'] ?? true;
         final showActionsColumn =
             showEditButton == true || showDeleteButton == true;
+        final showQuickSearch = tableOptions['showQuickSearch'] ?? true;
+        final parentKey = tableOptions['parent_key'] as String?;
 
         // Parse pagination config
         final paginationConfig =
@@ -663,6 +673,24 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           rowsData = _applyFilters(name, filtersData, rowsData);
         }
 
+        // Apply quick search filter (client-side, all columns)
+        _quickSearchControllers.putIfAbsent(name, () => TextEditingController());
+        final quickSearchText = _quickSearchTexts[name] ?? '';
+        if (quickSearchText.isNotEmpty) {
+          final query = quickSearchText.toLowerCase();
+          rowsData = rowsData.where((row) {
+            if (row is Map) {
+              return row.values.any((v) =>
+                  v != null && v.toString().toLowerCase().contains(query));
+            }
+            if (row is FocEntity) {
+              return row.properties.values.any((v) =>
+                  v != null && v.toString().toLowerCase().contains(query));
+            }
+            return false;
+          }).toList();
+        }
+
         final columns = [
           ...columnsData.map<DataColumn>((col) => DataColumn(
                 label: Text(col['label']?.toString() ?? ''),
@@ -721,37 +749,75 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
               _buildFilterSection(context, name, filtersData, tableMetaEntity),
               const SizedBox(height: 10),
             ],
-            if (showAddButton == true) ...[
+            if (showQuickSearch == true || showAddButton == true) ...[
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 22, vertical: 14),
-                      textStyle: const TextStyle(fontSize: 16),
-                      elevation: 0,
-                    ),
-                    onPressed: () {
-                      // Open empty details view for new item
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => FocDetailsView(
-                            metaEntity: tableMetaEntity!, //widget.metaEntity!,
-                            itemId: null, // null means create new
+                  if (showQuickSearch == true) ...[
+                    SizedBox(
+                      width: 300,
+                      child: TextField(
+                        controller: _quickSearchControllers[name],
+                        decoration: InputDecoration(
+                          hintText: 'Search...',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: (_quickSearchTexts[name]?.isNotEmpty ?? false)
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _quickSearchControllers[name]!.clear();
+                                    setState(() => _quickSearchTexts[name] = '');
+                                  },
+                                )
+                              : null,
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
                           ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 12),
                         ),
-                      );
-                    },
-                  ),
+                        onSubmitted: (value) =>
+                            setState(() => _quickSearchTexts[name] = value),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  if (showAddButton == true)
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 22, vertical: 14),
+                        textStyle: const TextStyle(fontSize: 16),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        final defaultValues = <String, dynamic>{};
+                        if (parentKey != null && widget.focEntity?.id != null) {
+                          defaultValues[parentKey] = widget.focEntity!.id;
+                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FocDetailsView(
+                              metaEntity: tableMetaEntity!,
+                              itemId: null,
+                              defaultValues: defaultValues.isNotEmpty ? defaultValues : null,
+                            ),
+                          ),
+                        ).then((newItem) {
+                          if (newItem != null) {
+                            widget.state.refreshData();
+                          }
+                        });
+                      },
+                    ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -1085,6 +1151,12 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         if (widget.focEntity != null && widget.focEntity!.id != null) {
           updatedValues['id'] = widget.focEntity!.id;
         }
+        // Inject hidden values (e.g. parent FK) that are not rendered in the form
+        if (widget.hiddenValues != null) {
+          for (final entry in widget.hiddenValues!.entries) {
+            updatedValues.putIfAbsent(entry.key, () => entry.value);
+          }
+        }
         FocEntity newEntity = FocEntity(metaEntity, updatedValues);
         //final entity = fromJson != null ? fromJson(values) : values;
 //        if (entity is FocEntity) {
@@ -1107,6 +1179,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           );
         }
         print('Failed to save item: $e');
+        return null;
       }
       return values;
     }
@@ -1787,11 +1860,9 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
             metaEntity: item.metaEntity, itemId: item.id.toString()),
       ),
     ).then((updatedItem) {
-      // if (updatedItem != null) {
-      //   setState(() {
-      //     futureItems = FocService().fetchItems(item.metaEntity);
-      //   });
-      // }
+      if (updatedItem != null) {
+        widget.state.refreshData();
+      }
     });
   }
 
@@ -1799,19 +1870,24 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     try {
       debugPrint("About to delete ${item.id}");
       await FocService().deleteItem(item.metaEntity, item.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Item ${item.id} deleted successfully'),
-            backgroundColor: Colors.green),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Item ${item.id} deleted successfully'),
+              backgroundColor: Colors.green),
+        );
+        widget.state.refreshData();
+      }
     } catch (e, stacktrace) {
       debugPrint("Error deleting item: $e");
       debugPrint("Stacktrace: $stacktrace");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Failed to delete item: $e'),
-            backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Failed to delete item: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
     }
   }
 }
@@ -1819,6 +1895,9 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
 abstract class JsonFormState<T extends StatefulWidget> extends State<T> {
   @override
   Widget build(BuildContext context);
+
+  /// Override to reload list data after a change (insert, edit, delete)
+  void refreshData() {}
 
   /// Override this method to add custom column headers
   /// Returns a list of DataColumn widgets that will be inserted before the Actions column

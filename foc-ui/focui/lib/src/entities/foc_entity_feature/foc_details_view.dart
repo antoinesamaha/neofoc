@@ -11,9 +11,10 @@ import '../../components/json_form_builder.dart';
 class FocDetailsView extends StatefulWidget {
   final MetaEntity metaEntity;
   final String? itemId;
+  final Map<String, dynamic>? defaultValues;
 
   const FocDetailsView(
-      {super.key, required this.metaEntity, required this.itemId});
+      {super.key, required this.metaEntity, required this.itemId, this.defaultValues});
 
   static const routeName = '/entity/details';
 
@@ -34,9 +35,14 @@ class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
 
   void _saveItem(FocEntity focEntity) async {
     if (_formKey.currentState?.saveAndValidate() ?? false) {
-      final updatedData = _formKey.currentState?.value;
-      final updatedEntity =
-          FocEntity.fromJson(focEntity.metaEntity, updatedData!);
+      final updatedData = Map<String, dynamic>.from(_formKey.currentState!.value);
+      // Merge hidden defaults (e.g. parent FK) that are not rendered in the form
+      if (widget.defaultValues != null) {
+        for (final entry in widget.defaultValues!.entries) {
+          updatedData.putIfAbsent(entry.key, () => entry.value);
+        }
+      }
+      final updatedEntity = FocEntity.fromJson(focEntity.metaEntity, updatedData);
       try {
         if (updatedEntity.id != null && updatedEntity.id > 0) {
           await FocService().updateItem(widget.metaEntity, updatedEntity);
@@ -126,6 +132,7 @@ class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
         formData: formData,
         formKey: _formKey,
         initialValues: focEntity.properties,
+        hiddenValues: widget.defaultValues,
         onChanged: (values) {
           // Handle form changes if needed
         },

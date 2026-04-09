@@ -82,6 +82,7 @@ class FocListViewState extends JsonFormState<FocListView> {
     return false;
   }
 
+  @override
   void refreshData() {
     setState(() {
       _formFuture = _buildEntityForm();
