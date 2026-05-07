@@ -32,11 +32,10 @@ class Config {
   static IconData appIcon = Icons
       .construction; // Path to the application icon, to be set by the using package
   static List<Menu> menuItems = [
+    Menu(Icons.people, "Users", "/users", "FUSER"),
     Menu(Icons.document_scanner, "Countries", "/countries", "Country",
         widgetClassName: "CustomListView"),
     Menu(Icons.document_scanner, "Entities", "/entities", ""),
-    // Example of using a custom widget class:
-    // Menu(Icons.list, "Custom View", "/custom", "CustomEntity", widgetClassName: "CustomListView"),
   ];
 
   static Map<String, WidgetBuilder> entityListViewRegistry = {

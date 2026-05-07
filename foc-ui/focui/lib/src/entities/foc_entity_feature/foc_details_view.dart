@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
+import 'package:focui/main.dart';
+import 'package:focui/src/auth/auth_service.dart';
 import '../meta_feature/meta_entity.dart';
 import 'foc_entity.dart';
 import 'foc_field_types.dart';
@@ -33,6 +35,89 @@ class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
         FocService().fetchItemDetails(widget.metaEntity, widget.itemId ?? '');
   }
 
+  Future<void> _showSetPasswordDialog(String username) async {
+    final formKey = GlobalKey<FormState>();
+    final newPasswordCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    bool loading = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Text('Set Password for $username'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: newPasswordCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'New Password'),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: confirmCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Confirm Password'),
+                  validator: (v) => v != newPasswordCtrl.text
+                      ? 'Passwords do not match'
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: loading
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setState(() => loading = true);
+                      try {
+                        final authService = getIt<AuthService>();
+                        await authService.changePassword(
+                          username,
+                          null,
+                          newPasswordCtrl.text,
+                        );
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content:
+                                  Text('Password for $username updated')),
+                        );
+                      } catch (e) {
+                        setState(() => loading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(e
+                                  .toString()
+                                  .replaceFirst('Exception: ', ''))),
+                        );
+                      }
+                    },
+              child: loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Set Password'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _saveItem(FocEntity focEntity) async {
     if (_formKey.currentState?.saveAndValidate() ?? false) {
       final updatedData = Map<String, dynamic>.from(_formKey.currentState!.value);
@@ -63,6 +148,18 @@ class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
         title: Text(
             '${widget.metaEntity.name[0].toUpperCase()}${widget.metaEntity.name.substring(1)}'),
         actions: [
+          if (widget.metaEntity.storageName == 'FUSER')
+            FutureBuilder<FocEntity>(
+              future: futureItem,
+              builder: (context, snapshot) => IconButton(
+                icon: const Icon(Icons.key),
+                tooltip: 'Set Password',
+                onPressed: snapshot.hasData
+                    ? () => _showSetPasswordDialog(
+                        snapshot.data!['NAME']?.toString() ?? '')
+                    : null,
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.save),
             onPressed: () async {

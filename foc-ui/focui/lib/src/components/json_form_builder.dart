@@ -96,6 +96,9 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   // Resolved foreign key cache: "fieldName_rowId" → FocEntity
   final Map<String, FocEntity> _resolvedCache = {};
 
+  // Futures for foc_dropdown fields keyed by entity storage name
+  final Map<String, Future<List<FocEntity>>> _entityDropdownFutures = {};
+
   // Quick search per data_table: keyed by table field name
   final Map<String, TextEditingController> _quickSearchControllers = {};
   final Map<String, String> _quickSearchTexts = {};
@@ -378,6 +381,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       case 'integer':
         return FormBuilderTextField(
           name: name,
+          initialValue: widget.initialValues?[name]?.toString(),
           decoration: decoration,
           enabled: enabled,
           validator: FormBuilderValidators.compose(validators),
@@ -410,8 +414,11 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       case 'dropdown':
       case 'select':
         final options = fieldData['options'] as List<dynamic>? ?? [];
+        final rawDropdownVal = widget.initialValues?[name];
+        final dropdownVal = rawDropdownVal?.toString();
         return FormBuilderDropdown<String>(
           name: name,
+          initialValue: dropdownVal,
           decoration: decoration,
           enabled: enabled,
           validator: FormBuilderValidators.compose(validators),
@@ -423,10 +430,90 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
               .toList(),
         );
 
+      case 'foc_dropdown':
+        // meta_entity is optional: infer from the parent entity's field metadata
+        String? entityStorageName = fieldData['meta_entity'] as String?;
+        if (entityStorageName == null) {
+          final metaField = widget.metaEntity?.fields
+              .where((f) => f.dbName == name || f.name == name)
+              .firstOrNull;
+          entityStorageName = metaField?.storageName;
+        }
+        final displayField = fieldData['display_field'] as String? ?? 'NAME';
+        if (entityStorageName == null) return null;
+
+        final referencedMeta = MetaService().getEntityByName(entityStorageName);
+        if (referencedMeta == null) return null;
+
+        _entityDropdownFutures.putIfAbsent(
+          entityStorageName,
+          () => FocService().fetchItems(referencedMeta),
+        );
+
+        // Normalise the FK value to a String, treating 0 as null because FOC
+        // uses 0 to represent an unset foreign key reference.
+        final rawFocDrop = widget.initialValues?[name];
+        final focDropInitial = (rawFocDrop == null ||
+                rawFocDrop == 0 ||
+                rawFocDrop.toString() == '0')
+            ? null
+            : rawFocDrop.toString();
+
+        return FutureBuilder<List<FocEntity>>(
+          future: _entityDropdownFutures[entityStorageName],
+          builder: (context, snapshot) {
+            final isLoaded = snapshot.hasData;
+            final focDropItems = snapshot.data ?? [];
+
+            // Real items shown once the entity list has loaded
+            final realItems = <DropdownMenuItem<String>>[
+              if (!required)
+                const DropdownMenuItem<String>(
+                  value: null,
+                  child: Text('— none —'),
+                ),
+              ...focDropItems
+                  .where((e) => e.id != null)
+                  .map((e) => DropdownMenuItem<String>(
+                        value: '${e.id}',
+                        child: Text(
+                            e[displayField]?.toString() ?? '${e.id}'),
+                      )),
+            ];
+
+            // While loading keep a single placeholder item whose value matches
+            // focDropInitial so Flutter's assertion (value must be in items)
+            // never fires during the transition.
+            final loadingItems = <DropdownMenuItem<String>>[
+              DropdownMenuItem<String>(
+                value: focDropInitial,
+                child: const Text('Loading…'),
+              ),
+            ];
+
+            return FormBuilderDropdown<String>(
+              name: name,
+              initialValue: focDropInitial,
+              decoration: decoration,
+              enabled: enabled && isLoaded,
+              validator: FormBuilderValidators.compose(validators),
+              // Convert the selected String id back to int on save
+              valueTransformer: (val) =>
+                  val == null ? null : int.tryParse(val),
+              items: isLoaded ? realItems : loadingItems,
+            );
+          },
+        );
+
       case 'checkbox':
       case 'boolean':
+        final rawBoolVal = widget.initialValues?[name];
+        final boolVal = rawBoolVal == true ||
+            rawBoolVal == 1 ||
+            rawBoolVal?.toString().toLowerCase() == 'true';
         return FormBuilderCheckbox(
           name: name,
+          initialValue: boolVal,
           enabled: enabled,
           validator: FormBuilderValidators.compose(
               validators.cast<FormFieldValidator<bool>>()),
@@ -435,8 +522,13 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         );
 
       case 'switch':
+        final rawSwitchVal = widget.initialValues?[name];
+        final switchVal = rawSwitchVal == true ||
+            rawSwitchVal == 1 ||
+            rawSwitchVal?.toString().toLowerCase() == 'true';
         return FormBuilderSwitch(
           name: name,
+          initialValue: switchVal,
           enabled: enabled,
           validator: FormBuilderValidators.compose(
               validators.cast<FormFieldValidator<bool>>()),
@@ -488,6 +580,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       case 'date':
         return FormBuilderDateTimePicker(
           name: name,
+          initialValue: _parseDateTime(widget.initialValues?[name]),
           decoration: decoration,
           enabled: enabled,
           validator: FormBuilderValidators.compose(
@@ -499,6 +592,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       case 'time':
         return FormBuilderDateTimePicker(
           name: name,
+          initialValue: _parseDateTime(widget.initialValues?[name]),
           decoration: decoration,
           enabled: enabled,
           validator: FormBuilderValidators.compose(
@@ -509,6 +603,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       case 'datetime':
         return FormBuilderDateTimePicker(
           name: name,
+          initialValue: _parseDateTime(widget.initialValues?[name]),
           decoration: decoration,
           enabled: enabled,
           validator: FormBuilderValidators.compose(
@@ -708,10 +803,14 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           final cells = [
             ...columnsData.map((col) {
               final key = col['key']?.toString() ?? '';
+              final cellVal = row[key];
+              final cellBool = cellVal == true ||
+                  cellVal == 1 ||
+                  cellVal?.toString().toLowerCase() == 'true';
               return DataCell(col['checkbox'] == true
                   ? Icon(
-                      row[key] ? Icons.check_circle : Icons.cancel,
-                      color: row[key] ? Colors.green : Colors.red,
+                      cellBool ? Icons.check_circle : Icons.cancel,
+                      color: cellBool ? Colors.green : Colors.red,
                     )
                   : _buildCellValue(row, key, tableMetaEntity));
             }),
@@ -1079,9 +1178,15 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   }
 
   dynamic _getDateFormat(String? format) {
-    // You can implement custom date formatting here
-    // For now, returning null to use default format
     return null;
+  }
+
+  DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    final s = value.toString();
+    if (s.isEmpty || s == 'null') return null;
+    return DateTime.tryParse(s);
   }
 
   TextStyle? _getTextStyle(Map<String, dynamic>? styleConfig) {
