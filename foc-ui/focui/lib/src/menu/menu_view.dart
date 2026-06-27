@@ -5,17 +5,29 @@ import 'package:focui/src/entities/foc_entity_feature/foc_list_view.dart';
 import 'package:focui/src/entities/meta_feature/meta_entity.dart';
 import 'package:focui/src/entities/meta_feature/meta_service.dart';
 import 'package:focui/src/settings/config.dart';
+import 'package:go_router/go_router.dart';
 
 import '../settings/settings_view.dart';
 import 'menu.dart';
 
 /// Displays a list of SampleItems.
-class MenuView extends StatelessWidget {
-  MenuView({super.key});
+class MenuView extends StatefulWidget {
+  const MenuView({super.key});
 
   static const routeName = '/';
 
+  @override
+  State<MenuView> createState() => _MenuViewState();
+}
+
+class _MenuViewState extends State<MenuView> {
   final List<Menu> items = Config.menuItems;
+
+  @override
+  void initState() {
+    super.initState();
+    MetaService().fetchItems();
+  }
 
   Future<void> _showChangePasswordDialog(BuildContext context) async {
     final formKey = GlobalKey<FormState>();
@@ -181,10 +193,7 @@ class MenuView extends StatelessWidget {
                 }
               } else {
                 // If the entity is null, Go to the menu path
-                Navigator.restorablePushNamed(
-                  context,
-                  item.entityPath,
-                );
+                context.push(item.entityPath);
               }
             },
           );

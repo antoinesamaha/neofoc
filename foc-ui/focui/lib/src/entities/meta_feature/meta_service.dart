@@ -56,8 +56,8 @@ class MetaService {
 
   MetaEntity? getEntityByName(String name) {
     if (_entities == null) {
-      MetaService().fetchItems();
-      //throw Exception('Entities not loaded');
+      fetchItems();
+      return null;
     }
     return _entities![name];
   }

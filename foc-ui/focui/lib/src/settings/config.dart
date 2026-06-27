@@ -36,6 +36,7 @@ class Config {
     Menu(Icons.document_scanner, "Countries", "/countries", "Country",
         widgetClassName: "CustomListView"),
     Menu(Icons.document_scanner, "Entities", "/entities", ""),
+    Menu(Icons.memory_rounded, "Object Monitor", "/monitor/objects", ""),
   ];
 
   static Map<String, WidgetBuilder> entityListViewRegistry = {

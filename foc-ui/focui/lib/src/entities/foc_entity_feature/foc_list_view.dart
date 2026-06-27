@@ -24,6 +24,7 @@ class FocListView extends StatefulWidget {
 class FocListViewState extends JsonFormState<FocListView> {
   final _formKey = GlobalKey<FormBuilderState>();
   late Future<Widget> _formFuture;
+  Widget? _formWidgetCache;
 
   @override
   void initState() {
@@ -133,10 +134,11 @@ class FocListViewState extends JsonFormState<FocListView> {
           future: _formFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return _formWidgetCache ?? const Center(child: CircularProgressIndicator());
             } else if (snapshot.hasError) {
               return Center(child: Text('Error: ${snapshot.error}'));
             } else if (snapshot.hasData) {
+              _formWidgetCache = snapshot.data!;
               return snapshot.data!;
             } else {
               return const Center(child: Text('No form available'));

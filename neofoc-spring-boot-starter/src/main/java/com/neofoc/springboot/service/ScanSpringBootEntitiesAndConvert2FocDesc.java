@@ -9,6 +9,7 @@ import com.foc.desc.FocModule;
 import com.foc.desc.FocObjectGeneral;
 import com.foc.desc.field.*;
 import com.foc.util.ASCII;
+import com.foc.db.DBIndex;
 import jakarta.persistence.*;
 import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.EntityType;
@@ -173,6 +174,8 @@ public class ScanSpringBootEntitiesAndConvert2FocDesc {
                 }
             }
 
+            processTableConstraints(typeClass, focDesc);
+
             FocDescInstanceFocDescDeclaration declaration = new FocDescInstanceFocDescDeclaration(focDesc);
             declaration.setFocModule(focModule);
             Globals.getApp().declaredObjectList_DeclareDescription(declaration);
@@ -278,6 +281,63 @@ public class ScanSpringBootEntitiesAndConvert2FocDesc {
             Globals.logException(e);
         }
         return null;
+    }
+
+    private void processTableConstraints(Class<?> typeClass, FocDesc focDesc) {
+        for (Field javaField : typeClass.getDeclaredFields()) {
+            Column col = javaField.getAnnotation(Column.class);
+            if (col != null && col.unique()) {
+                FField fld = focDesc.getFieldByName(javaFieldNameToFocFieldName(javaField.getName()));
+                if (fld != null) {
+                    DBIndex idx = new DBIndex("UQ_" + focDesc.getName() + "_" + javaField.getName(), focDesc, true);
+                    idx.addField(fld.getID());
+                    focDesc.indexAdd(idx);
+                }
+            }
+        }
+
+        Table table = typeClass.getAnnotation(Table.class);
+        if (table == null) return;
+
+        for (UniqueConstraint uc : table.uniqueConstraints()) {
+            DBIndex idx = new DBIndex(uc.name(), focDesc, true);
+            for (String col : uc.columnNames()) {
+                FField fld = findFieldByColumnName(focDesc, col);
+                if (fld != null) {
+                    idx.addField(fld.getID());
+                } else {
+                    Globals.logString("WARNING: No Foc field for column '" + col + "' in " + typeClass.getSimpleName());
+                }
+            }
+            if (idx.getFieldCount() > 0) focDesc.indexAdd(idx);
+        }
+
+        for (Index index : table.indexes()) {
+            DBIndex idx = new DBIndex(index.name(), focDesc, index.unique());
+            for (String col : index.columnList().split(",")) {
+                FField fld = findFieldByColumnName(focDesc, col);
+                if (fld != null) {
+                    idx.addField(fld.getID());
+                } else {
+                    Globals.logString("WARNING: No Foc field for column '" + col.trim() + "' in " + typeClass.getSimpleName());
+                }
+            }
+            if (idx.getFieldCount() > 0) focDesc.indexAdd(idx);
+        }
+    }
+
+    private FField findFieldByColumnName(FocDesc focDesc, String columnName) {
+        columnName = columnName.trim();
+        FField fld = focDesc.getFieldByName(columnName);
+        if (fld == null && columnName.endsWith("_id")) {
+            fld = focDesc.getFieldByName(columnName.substring(0, columnName.length() - 3));
+        }
+        return fld;
+    }
+
+    private String javaFieldNameToFocFieldName(String javaFieldName) {
+        String capitalized = Character.toUpperCase(javaFieldName.charAt(0)) + javaFieldName.substring(1);
+        return ASCII.convertJavaClassNameTo_SmallLettersWith_(capitalized);
     }
 
     @Data

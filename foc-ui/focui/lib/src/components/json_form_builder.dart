@@ -808,10 +808,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                   cellVal == 1 ||
                   cellVal?.toString().toLowerCase() == 'true';
               return DataCell(col['checkbox'] == true
-                  ? Icon(
-                      cellBool ? Icons.check_circle : Icons.cancel,
-                      color: cellBool ? Colors.green : Colors.red,
-                    )
+                  ? _buildCheckboxCell(col, cellBool)
                   : _buildCellValue(row, key, tableMetaEntity));
             }),
             ...widget.state
@@ -1047,6 +1044,26 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           return value;
         }
       },
+    );
+  }
+
+  Widget _buildCheckboxCell(Map<String, dynamic> col, bool value) {
+    if (col['hide_when_false'] == true && !value) {
+      return const SizedBox.shrink();
+    }
+    if (col['hide_when_false'] == true && value) {
+      return Tooltip(
+        message: col['label']?.toString() ?? '',
+        child: const Icon(
+          Icons.pause_circle_filled,
+          color: Colors.blueGrey,
+          size: 22,
+        ),
+      );
+    }
+    return Icon(
+      value ? Icons.check_circle : Icons.cancel,
+      color: value ? Colors.green : Colors.red,
     );
   }
 

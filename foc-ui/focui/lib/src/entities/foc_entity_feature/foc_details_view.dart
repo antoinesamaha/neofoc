@@ -15,8 +15,16 @@ class FocDetailsView extends StatefulWidget {
   final String? itemId;
   final Map<String, dynamic>? defaultValues;
 
+  /// Optional widget shown above the form (e.g. a live status banner).
+  /// It is rendered independently from the form and does not affect editable fields.
+  final Widget? statusWidget;
+
   const FocDetailsView(
-      {super.key, required this.metaEntity, required this.itemId, this.defaultValues});
+      {super.key,
+      required this.metaEntity,
+      required this.itemId,
+      this.defaultValues,
+      this.statusWidget});
 
   static const routeName = '/entity/details';
 
@@ -169,38 +177,48 @@ class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
           ),
         ],
       ),
-      body: FutureBuilder<FocEntity>(
-        future: futureItem,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData) {
-            return const Center(child: Text('No item details found'));
-          } else {
-            final focEntity = snapshot.data!;
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: FutureBuilder<Widget>(
-                future: entityForm(focEntity),
-                builder: (context, formSnapshot) {
-                  if (formSnapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (formSnapshot.hasError) {
-                    return Center(
-                        child:
-                            Text('Error loading form: ${formSnapshot.error}'));
-                  } else if (formSnapshot.hasData) {
-                    return formSnapshot.data!;
-                  } else {
-                    return const Center(child: Text('No form available'));
-                  }
-                },
-              ),
-            );
-          }
-        },
+      body: Column(
+        children: [
+          if (widget.statusWidget != null) widget.statusWidget!,
+          Expanded(
+            child: FutureBuilder<FocEntity>(
+              future: futureItem,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                } else if (!snapshot.hasData) {
+                  return const Center(child: Text('No item details found'));
+                } else {
+                  final focEntity = snapshot.data!;
+                  return Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: FutureBuilder<Widget>(
+                      future: entityForm(focEntity),
+                      builder: (context, formSnapshot) {
+                        if (formSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        } else if (formSnapshot.hasError) {
+                          return Center(
+                              child: Text(
+                                  'Error loading form: ${formSnapshot.error}'));
+                        } else if (formSnapshot.hasData) {
+                          return formSnapshot.data!;
+                        } else {
+                          return const Center(
+                              child: Text('No form available'));
+                        }
+                      },
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
