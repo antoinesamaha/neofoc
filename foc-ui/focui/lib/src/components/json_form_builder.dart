@@ -281,17 +281,16 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     switch (layout) {
       case 'row':
         if (fieldWidgets.isEmpty) return const SizedBox.shrink();
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: fieldWidgets
-                .map((w) => Padding(
-                      padding: EdgeInsets.only(right: spacing),
-                      child: w,
-                    ))
-                .toList(),
-          ),
+        final rowChildren = <Widget>[];
+        for (int i = 0; i < fieldWidgets.length; i++) {
+          rowChildren.add(Expanded(child: fieldWidgets[i]));
+          if (i < fieldWidgets.length - 1) {
+            rowChildren.add(SizedBox(width: spacing));
+          }
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: rowChildren,
         );
       case 'wrap':
         if (fieldWidgets.isEmpty) return const SizedBox.shrink();
