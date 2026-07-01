@@ -183,7 +183,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     return Container(
         child: FormBuilder(
       key: _formKey,
-      initialValue: widget.initialValues ?? {},
+      initialValue: _sanitizeInitialValues(widget.initialValues),
       autovalidateMode: widget.autovalidateMode,
       onChanged: () {
         if (widget.onChanged != null) {
@@ -1195,6 +1195,11 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
 
   dynamic _getDateFormat(String? format) {
     return null;
+  }
+
+  Map<String, dynamic> _sanitizeInitialValues(Map<String, dynamic>? values) {
+    if (values == null) return {};
+    return values.map((k, v) => MapEntry(k, v == '' ? null : v));
   }
 
   DateTime? _parseDateTime(dynamic value) {
