@@ -288,9 +288,11 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
             rowChildren.add(SizedBox(width: spacing));
           }
         }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: rowChildren,
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: rowChildren,
+          ),
         );
       case 'wrap':
         if (fieldWidgets.isEmpty) return const SizedBox.shrink();
@@ -927,7 +929,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                 child: DataTable(
                   columns: columns,
                   rows: rows,
-                  headingRowColor: MaterialStateProperty.resolveWith<Color?>(
+                  headingRowColor: WidgetStateProperty.resolveWith<Color?>(
                       (states) => Colors.blueGrey.shade700),
                   headingTextStyle: const TextStyle(
                     color: Colors.white,
@@ -1291,12 +1293,9 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         } else {
           await FocService().insertItem(metaEntity, newEntity);
         }
-        Navigator.pop(context, newEntity);
-        // } else {
-        //   // If not FocEntity, just return values
-        //   return values;
-        // }
+        if (context.mounted) Navigator.pop(context, newEntity);
       } catch (e) {
+        debugPrint('Failed to save item: $e');
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1304,7 +1303,6 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                 backgroundColor: Colors.red),
           );
         }
-        print('Failed to save item: $e');
         return null;
       }
       return values;
@@ -1828,6 +1826,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
 
                       // Non-paginated search (original logic)
                       final searchBody = _buildSearchBody(tableName, filters);
+                      final messenger = ScaffoldMessenger.of(context);
                       setState(() => _searchingTables.add(tableName));
                       try {
                         final results = await FocService()
@@ -1843,14 +1842,13 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                           });
                         }
                       } catch (e) {
-                        if (mounted) {
-                          setState(() => _searchingTables.remove(tableName));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('Search failed: $e'),
-                                backgroundColor: Colors.red),
-                          );
-                        }
+                        if (!mounted) return;
+                        setState(() => _searchingTables.remove(tableName));
+                        messenger.showSnackBar(
+                          SnackBar(
+                              content: Text('Search failed: $e'),
+                              backgroundColor: Colors.red),
+                        );
                       }
                     },
             ),
