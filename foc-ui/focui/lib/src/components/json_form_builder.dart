@@ -183,7 +183,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     return Container(
         child: FormBuilder(
       key: _formKey,
-      initialValue: _sanitizeInitialValues(widget.initialValues),
+      initialValue: _sanitizeInitialValues(
+      widget.initialValues, _collectDateFieldNames(_parsedFormData!)),
       autovalidateMode: widget.autovalidateMode,
       onChanged: () {
         if (widget.onChanged != null) {
@@ -1199,17 +1200,53 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     return null;
   }
 
-  Map<String, dynamic> _sanitizeInitialValues(Map<String, dynamic>? values) {
+  Set<String> _collectDateFieldNames(Map<String, dynamic> formData) {
+    final result = <String>{};
+    final fields = formData['fields'] as List<dynamic>? ?? [];
+    for (final field in fields) {
+      if (field is! Map<String, dynamic>) continue;
+      final type = field['type'] as String?;
+      final name = field['name'] as String?;
+      if (name != null && (type == 'date' || type == 'datetime' || type == 'time')) {
+        result.add(name);
+      }
+      if (field['fields'] != null) {
+        result.addAll(_collectDateFieldNames(field));
+      }
+    }
+    return result;
+  }
+
+  Map<String, dynamic> _sanitizeInitialValues(
+      Map<String, dynamic>? values, [Set<String> dateFields = const {}]) {
     if (values == null) return {};
-    return values.map((k, v) => MapEntry(k, v == '' ? null : v));
+    return values.map((k, v) {
+      if (v == null || v == '') return MapEntry(k, null);
+      if (dateFields.contains(k)) return MapEntry(k, _parseDateTime(v));
+      return MapEntry(k, v);
+    });
   }
 
   DateTime? _parseDateTime(dynamic value) {
     if (value == null) return null;
     if (value is DateTime) return value;
-    final s = value.toString();
+    final s = value.toString().trim();
     if (s.isEmpty || s == 'null') return null;
-    return DateTime.tryParse(s);
+    // Try ISO 8601 first (yyyy-MM-dd or yyyy-MM-ddTHH:mm:ss)
+    final iso = DateTime.tryParse(s);
+    if (iso != null) return iso;
+    // Try dd/MM/yyyy
+    final parts = s.split('/');
+    if (parts.length == 3) {
+      final day = int.tryParse(parts[0]);
+      final month = int.tryParse(parts[1]);
+      final year = int.tryParse(parts[2]);
+      if (day != null && month != null && year != null) {
+        return DateTime.tryParse(
+            '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}');
+      }
+    }
+    return null;
   }
 
   TextStyle? _getTextStyle(Map<String, dynamic>? styleConfig) {

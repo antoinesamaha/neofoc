@@ -150,7 +150,7 @@ public class FocController {
     }
 
     public boolean useCachedList(FocRestAPICall focRequest) {
-        return true;
+        return focRequest != null && focRequest.getFocDesc() != null && focRequest.getFocDesc().isListInCache();
     }
 
     // ------------------------------------
@@ -284,9 +284,8 @@ public class FocController {
         FocList list = focDesc != null ? focDesc.getFocList() : null;
         if (list == null) {
             list = new FocList(new FocLinkSimple(focDesc));
-            if(request.getRef() > 0){
-                applyRefFilterIfNeeded(request, list);
-            }
+
+            applyRefFilterIfNeeded(request, list);
         }
         if (loaded && list != null) {
             // If refresh cached list is functional on the foc level then here we do not
@@ -319,8 +318,12 @@ public class FocController {
     }
 
     protected long doPost_GetReference(JSONObject jsonObj, FocList list) {
+        return doPost_GetReference(jsonObj, list.getFocDesc());
+    }
+
+    protected long doPost_GetReference(JSONObject jsonObj, FocDesc focDesc) {
         int ref = 0;
-        String idDBName = list.getFocDesc().getIdentifierField().getDBName();
+        String idDBName = focDesc.getIdentifierField().getDBName();
         if (jsonObj != null && jsonObj.has(idDBName)) {
             try {
                 ref = jsonObj.getInt(idDBName);
@@ -347,8 +350,12 @@ public class FocController {
 
     public long getFilterRef(HttpServletRequest request, FocList list) {
         String idDBName = list.getFocDesc().getIdentifierField().getDBName();
-        String refStr = request != null ? request.getParameter(idDBName) : null;
-        long ref = refStr != null ? Utils.parseLong(refStr, 0) : 0;
+        PathDetails pathDetails = getPathDetails(request);
+        long ref = pathDetails.getId();
+        if (ref == 0) {
+            String refStr = request != null ? request.getParameter(idDBName) : null;
+            ref = refStr != null ? Utils.parseLong(refStr, 0) : 0;
+        }
         return ref;
     }
 
@@ -470,7 +477,7 @@ public class FocController {
                     }
                     if (filterRef > 0) {
                         FocObject focObject = null;
-                        if (!useCachedList(null)) {
+                        if (!useCachedList(focRequest)) {
                             if (list.size() == 1) {
                                 focObject = list.getFocObject(0);
                             }
@@ -488,7 +495,7 @@ public class FocController {
                     } else {
                         int start = -1;
                         int count = -1;
-                        if (useCachedList(null)) {
+                        if (useCachedList(focRequest)) {
                             start = getStartParameter(request);
                             count = getCountParameter(request);
                         }
@@ -513,7 +520,7 @@ public class FocController {
 //							responseBody = "{ \"list\":" + userJson + ", \"totalCount\":"+totalCount+"}";
                     }
 
-                    if (!useCachedList(null)) {
+                    if (!useCachedList(focRequest)) {
                         disposeFocList(focRequest, list);
                         list = null;
                     }
@@ -644,7 +651,7 @@ public class FocController {
 
                 String checkErrorJson = doPost_CheckError(focRequest, jsonObj);
                 if (checkErrorJson == null) {
-                    if (useCachedList(null)) {
+                    if (useCachedList(focRequest)) {
                         list = newFocList(focRequest, false);
                         if (list != null) {
                             list.loadIfNotLoadedFromDB();
@@ -660,7 +667,7 @@ public class FocController {
                             }
                         }
                     } else {
-                        long ref = doPost_GetReference(jsonObj, list);
+                        long ref = doPost_GetReference(jsonObj, focDesc);
                         focObj = newFocObject_POST(focRequest, ref);
                     }
 
@@ -706,7 +713,7 @@ public class FocController {
                             response.getWriter().println(userJson);
                         }
 
-                        if (!useCachedList(null)) {
+                        if (!useCachedList(focRequest)) {
                             disposeFocObject_POST(focRequest, focObj);
                         }
 
