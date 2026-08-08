@@ -167,6 +167,11 @@ class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
         title: FutureBuilder<String?>(
           future: futureFormTitle,
           builder: (context, snapshot) {
+            // Stay blank until the form JSON is loaded, rather than
+            // flashing the raw entity name before the real title arrives.
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const SizedBox.shrink();
+            }
             final title = snapshot.data ??
                 '${widget.metaEntity.name[0].toUpperCase()}${widget.metaEntity.name.substring(1)}';
             return Text(title);

@@ -144,6 +144,11 @@ class FocListViewState extends JsonFormState<FocListView> {
         title: FutureBuilder<String?>(
           future: _titleFuture,
           builder: (context, snapshot) {
+            // Stay blank until the list JSON is loaded, rather than
+            // flashing the raw entity name before the real title arrives.
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const SizedBox.shrink();
+            }
             final title = snapshot.data ?? _capitalize(widget.metaEntity.name);
             return Text(title);
           },
