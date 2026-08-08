@@ -35,12 +35,23 @@ class FocDetailsView extends StatefulWidget {
 class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
   final _formKey = GlobalKey<FormBuilderState>();
   late Future<FocEntity> futureItem;
+  late Future<String?> futureFormTitle;
 
   @override
   void initState() {
     super.initState();
     futureItem =
         FocService().fetchItemDetails(widget.metaEntity, widget.itemId ?? '');
+    futureFormTitle = _loadFormTitle();
+  }
+
+  /// Reads the "title" key from the entity's form JSON, if any, to use as
+  /// the AppBar title instead of the raw entity/table name.
+  Future<String?> _loadFormTitle() async {
+    final entityFormFile =
+        'assets/forms/${widget.metaEntity.name.toLowerCase().replaceAll(' ', '_')}_form.json';
+    final formData = await loadJsonAssetIfExists(entityFormFile);
+    return formData?['title'] as String?;
   }
 
   Future<void> _showSetPasswordDialog(String username) async {
@@ -153,8 +164,14 @@ class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-            '${widget.metaEntity.name[0].toUpperCase()}${widget.metaEntity.name.substring(1)}'),
+        title: FutureBuilder<String?>(
+          future: futureFormTitle,
+          builder: (context, snapshot) {
+            final title = snapshot.data ??
+                '${widget.metaEntity.name[0].toUpperCase()}${widget.metaEntity.name.substring(1)}';
+            return Text(title);
+          },
+        ),
         actions: [
           if (widget.metaEntity.storageName == 'FUSER')
             FutureBuilder<FocEntity>(
@@ -252,6 +269,9 @@ class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
           // Handle form changes if needed
         },
         autovalidateMode: AutovalidateMode.onUserInteraction,
+        // The form's root "title" (if any) is already shown as the AppBar
+        // title above - don't render it again inline.
+        showRootTitle: false,
         state: this,
       );
     } catch (e) {

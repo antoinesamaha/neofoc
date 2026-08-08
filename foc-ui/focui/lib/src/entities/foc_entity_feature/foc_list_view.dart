@@ -24,12 +24,28 @@ class FocListView extends StatefulWidget {
 class FocListViewState extends JsonFormState<FocListView> {
   final _formKey = GlobalKey<FormBuilderState>();
   late Future<Widget> _formFuture;
+  late Future<String?> _titleFuture;
   Widget? _formWidgetCache;
 
   @override
   void initState() {
     super.initState();
     _formFuture = _buildEntityForm();
+    _titleFuture = _loadTitle();
+  }
+
+  /// Reads the "title" key from the entity's list form JSON, if any, to use
+  /// as the AppBar title instead of the raw entity/table name.
+  Future<String?> _loadTitle() async {
+    String entityFormFile =
+        'assets/forms/${widget.metaEntity.name.toLowerCase().replaceAll(' ', '_')}_list.json';
+    try {
+      final jsonString = await rootBundle.loadString(entityFormFile);
+      final formData = json.decode(jsonString) as Map<String, dynamic>;
+      return formData['title'] as String?;
+    } catch (e) {
+      return null;
+    }
   }
 
   /// Builds the form widget, conditionally skipping the GET call
@@ -45,10 +61,14 @@ class FocListViewState extends JsonFormState<FocListView> {
       // Check if any data_table field has pagination enabled
       bool hasPagination = _hasPaginationInForm(formData);
 
-      // Only fetch all items when pagination is NOT enabled
-      List<FocEntity> focEntityList = hasPagination
-          ? []
-          : await FocService().fetchItems(widget.metaEntity);
+      // Cached entities are already fully resident server-side (that's what
+      // makes them cacheable), and the /search endpoint refuses them - so
+      // pagination/filtering for those is done locally against the full
+      // list instead of skipping the fetch.
+      List<FocEntity> focEntityList =
+          (hasPagination && !widget.metaEntity.isListInCache)
+              ? []
+              : await FocService().fetchItems(widget.metaEntity);
 
       return JsonFormBuilder(
         metaEntity: widget.metaEntity,
@@ -60,6 +80,9 @@ class FocListViewState extends JsonFormState<FocListView> {
           // Handle form changes if needed
         },
         autovalidateMode: AutovalidateMode.onUserInteraction,
+        // The form's root "title" (if any) is already shown as the AppBar
+        // title above - don't render it again inline.
+        showRootTitle: false,
         state: this,
       );
     } catch (e) {
@@ -118,7 +141,13 @@ class FocListViewState extends JsonFormState<FocListView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_capitalize(widget.metaEntity.name)),
+        title: FutureBuilder<String?>(
+          future: _titleFuture,
+          builder: (context, snapshot) {
+            final title = snapshot.data ?? _capitalize(widget.metaEntity.name);
+            return Text(title);
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),

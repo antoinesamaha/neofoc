@@ -5,6 +5,7 @@ import 'package:focui/src/entities/meta_feature/meta_service.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import '../entities/foc_entity_feature/foc_cache.dart';
 import '../entities/foc_entity_feature/foc_entity.dart';
 import '../entities/foc_entity_feature/foc_service.dart';
 import '../entities/meta_feature/meta_entity.dart';
@@ -45,6 +46,11 @@ class JsonFormBuilder extends StatefulWidget {
   /// Hidden values injected on save but not rendered in the form (e.g. parent FK)
   final Map<String, dynamic>? hiddenValues;
 
+  /// Whether to render the root-level "title" (if any) inline in the form
+  /// body. Set to false when the caller already surfaces that title
+  /// elsewhere (e.g. as the screen's AppBar title) to avoid showing it twice.
+  final bool showRootTitle;
+
   final JsonFormState state;
 
   const JsonFormBuilder(
@@ -62,6 +68,7 @@ class JsonFormBuilder extends StatefulWidget {
       this.formKey,
       this.enableDebug = false,
       this.hiddenValues,
+      this.showRootTitle = true,
       required this.state})
       : assert(
           formData != null || jsonString != null || assetPath != null,
@@ -191,11 +198,11 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           widget.onChanged!(_formKey.currentState?.value);
         }
       },
-      child: _buildFormFields(_parsedFormData!),
+      child: _buildFormFields(_parsedFormData!, isRoot: true),
     ));
   }
 
-  Widget _buildFormFields(Map<String, dynamic> formData) {
+  Widget _buildFormFields(Map<String, dynamic> formData, {bool isRoot = false}) {
     final fields = formData['fields'] as List<dynamic>? ?? [];
     final layout = formData['layout'] as String? ?? 'column';
     final title = formData['title'] as String?;
@@ -204,8 +211,9 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
 
     List<Widget> fieldWidgets = [];
 
-    // Add title if provided
-    if (title != null) {
+    // Add title if provided (unless it's the root title and the caller is
+    // already showing it elsewhere, e.g. as the screen's AppBar title)
+    if (title != null && (!isRoot || widget.showRootTitle)) {
       fieldWidgets.add(
         Padding(
           padding: EdgeInsets.only(bottom: spacing),
@@ -744,10 +752,16 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
             ?.map((f) => f as Map<String, dynamic>)
             .toList();
 
+        // Cached entities are fully resident client-side already, and the
+        // backend /search endpoint refuses them outright - so they're
+        // filtered/paginated locally instead of via server-side search.
+        final isCachedEntity = tableMetaEntity?.isListInCache ?? false;
+
         // Initialize pagination and trigger initial load if enabled
         if (paginationEnabled && tableMetaEntity != null) {
           _initPaginationState(name, paginationConfig);
-          if (!_searchResults.containsKey(name) &&
+          if (!isCachedEntity &&
+              !_searchResults.containsKey(name) &&
               !_searchingTables.contains(name) &&
               !_initialLoadScheduled.contains(name)) {
             _initialLoadScheduled.add(name);
@@ -758,7 +772,13 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         }
 
         // Use server-side search results if available, otherwise fallback to client-side
-        if (_searchResults.containsKey(name)) {
+        if (paginationEnabled && isCachedEntity) {
+          // Full list is already in rowsData (from widget.focEntityList) -
+          // just apply any configured filters locally.
+          if (filtersData != null && filtersData.isNotEmpty) {
+            rowsData = _applyFilters(name, filtersData, rowsData, tableMetaEntity);
+          }
+        } else if (_searchResults.containsKey(name)) {
           rowsData = _searchResults[name]!;
         } else if (paginationEnabled) {
           // Pagination enabled but no results yet - show empty while loading
@@ -767,25 +787,35 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
             filtersData.isNotEmpty &&
             tableMetaEntity == null) {
           // Client-side fallback only when no metaEntity for server search
-          rowsData = _applyFilters(name, filtersData, rowsData);
+          rowsData = _applyFilters(name, filtersData, rowsData, tableMetaEntity);
         }
 
-        // Apply quick search filter (client-side, all columns)
+        // Apply quick search filter (client-side, over the displayed columns
+        // - including resolved foreign-key columns like "instrument.name")
         _quickSearchControllers.putIfAbsent(name, () => TextEditingController());
         final quickSearchText = _quickSearchTexts[name] ?? '';
         if (quickSearchText.isNotEmpty) {
           final query = quickSearchText.toLowerCase();
           rowsData = rowsData.where((row) {
-            if (row is Map) {
-              return row.values.any((v) =>
-                  v != null && v.toString().toLowerCase().contains(query));
-            }
-            if (row is FocEntity) {
-              return row.properties.values.any((v) =>
-                  v != null && v.toString().toLowerCase().contains(query));
+            for (final col in columnsData) {
+              final key = col['key']?.toString() ?? '';
+              if (key.isEmpty) continue;
+              final text =
+                  _getCellSearchText(row, key, tableMetaEntity).toLowerCase();
+              if (text.contains(query)) return true;
             }
             return false;
           }).toList();
+        }
+
+        // For cached entities, the pagination bar reflects the filtered
+        // count, then the current page is sliced out of the local list.
+        if (paginationEnabled && isCachedEntity) {
+          final paginationState = _paginationStates[name]!;
+          paginationState['totalCount'] = rowsData.length;
+          final start = paginationState['start']!;
+          final count = paginationState['count']!;
+          rowsData = rowsData.skip(start).take(count).toList();
         }
 
         final columns = [
@@ -863,7 +893,10 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                                   icon: const Icon(Icons.clear),
                                   onPressed: () {
                                     _quickSearchControllers[name]!.clear();
-                                    setState(() => _quickSearchTexts[name] = '');
+                                    setState(() {
+                                      _quickSearchTexts[name] = '';
+                                      _resetPaginationToFirstPage(name);
+                                    });
                                   },
                                 )
                               : null,
@@ -874,8 +907,10 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                           contentPadding: const EdgeInsets.symmetric(
                               vertical: 8, horizontal: 12),
                         ),
-                        onSubmitted: (value) =>
-                            setState(() => _quickSearchTexts[name] = value),
+                        onSubmitted: (value) => setState(() {
+                          _quickSearchTexts[name] = value;
+                          _resetPaginationToFirstPage(name);
+                        }),
                       ),
                     ),
                   ],
@@ -1067,6 +1102,51 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       value ? Icons.check_circle : Icons.cancel,
       color: value ? Colors.green : Colors.red,
     );
+  }
+
+  /// Plain-text value for a (possibly dotted, foreign-key) column key, for
+  /// searching/filtering. Mirrors _buildCellValue's resolution but never
+  /// triggers a new fetch: it reads whatever's already in _resolvedCache,
+  /// falling back to the shared FocCache (already fully populated for any
+  /// cacheable referenced entity, e.g. instrument, as soon as one cell
+  /// referencing it has been rendered).
+  String _getCellSearchText(dynamic row, String key, MetaEntity? metaEntity) {
+    if (!key.contains('.')) {
+      if (row is Map) return row[key]?.toString() ?? '';
+      if (row is FocEntity) return row[key]?.toString() ?? '';
+      return '';
+    }
+
+    final parts = key.split('.');
+    final fieldName = parts[0];
+    final nestedProp = parts[1];
+
+    FocEntity? entity;
+    if (row is FocEntity) {
+      entity = row;
+    } else if (row is Map<String, dynamic> && metaEntity != null) {
+      entity = FocEntity(metaEntity, row);
+    }
+    if (entity == null) return '';
+
+    final rawFkId = entity[fieldName];
+    if (rawFkId == null) return '';
+
+    final cacheKey = '${fieldName}_$rawFkId';
+    if (_resolvedCache.containsKey(cacheKey)) {
+      return _resolvedCache[cacheKey]![nestedProp]?.toString() ?? '';
+    }
+
+    final metaField =
+        entity.metaEntity.fields.where((f) => f.name == fieldName).firstOrNull;
+    final storageName = metaField?.storageName;
+    if (storageName != null) {
+      final id = rawFkId is int ? rawFkId : int.tryParse(rawFkId.toString());
+      if (id != null && FocCache().has(storageName, id)) {
+        return FocCache().get(storageName, id)?[nestedProp]?.toString() ?? '';
+      }
+    }
+    return '';
   }
 
   Widget _buildCellValue(dynamic row, String key, MetaEntity? metaEntity) {
@@ -1427,6 +1507,17 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     };
   }
 
+  /// Resets a table's pagination back to page 1. Called whenever the quick
+  /// search text changes, so a new search slices from the start of the
+  /// filtered results instead of a stale offset from a previous page.
+  void _resetPaginationToFirstPage(String tableName) {
+    final paginationState = _paginationStates[tableName];
+    if (paginationState != null) {
+      paginationState['start'] = 0;
+      paginationState['currentPage'] = 1;
+    }
+  }
+
   /// Initializes pagination state from the JSON table_options config.
   void _initPaginationState(
       String tableName, Map<String, dynamic> paginationConfig) {
@@ -1445,6 +1536,15 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       List<Map<String, dynamic>>? filtersData, MetaEntity metaEntity) async {
     final paginationState = _paginationStates[tableName];
     if (paginationState == null) return;
+
+    // Cached entities are paginated/filtered locally in the data_table
+    // builder (the backend /search endpoint refuses them). Some callers
+    // mutate pagination/filter state before calling this without wrapping
+    // it in setState themselves, so force a rebuild here to pick it up.
+    if (metaEntity.isListInCache) {
+      if (mounted) setState(() {});
+      return;
+    }
 
     Map<String, dynamic> searchBody;
     if (filtersData != null && filtersData.isNotEmpty) {
@@ -1617,7 +1717,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   }
 
   List<dynamic> _applyFilters(String tableName,
-      List<Map<String, dynamic>> filters, List<dynamic> rows) {
+      List<Map<String, dynamic>> filters, List<dynamic> rows,
+      [MetaEntity? metaEntity]) {
     return rows.where((row) {
       for (final filter in filters) {
         final key = filter['key'] as String;
@@ -1628,8 +1729,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
 
         if (op == null || value == null || value.toString().isEmpty) continue;
 
-        final cellRaw = row is Map ? row[key] : null;
-        final cellStr = cellRaw?.toString() ?? '';
+        final cellStr = _getCellSearchText(row, key, metaEntity);
 
         switch (type) {
           case 'string':
