@@ -188,6 +188,7 @@ class FocListViewState extends JsonFormState<FocListView> {
       // Remove Center widget
       builder: (context, constraints) {
         final double tableWidth = constraints.maxWidth; // * 0.8;
+        final colorScheme = Theme.of(context).colorScheme;
         return SizedBox(
           width: tableWidth,
           child: Column(
@@ -196,21 +197,10 @@ class FocListViewState extends JsonFormState<FocListView> {
             children: [
               // Add button aligned with the table
               Padding(
-                padding: const EdgeInsets.only(bottom: 8, top: 8),
+                padding: const EdgeInsets.only(bottom: 12, top: 8),
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.add),
                   label: const Text('Add'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4A00E0),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 22, vertical: 14),
-                    textStyle: const TextStyle(fontSize: 16),
-                    elevation: 0,
-                  ),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -229,8 +219,8 @@ class FocListViewState extends JsonFormState<FocListView> {
                 ),
               ),
               // Table
-              ClipRRect(
-                borderRadius: BorderRadius.circular(18),
+              Card(
+                clipBehavior: Clip.antiAlias,
                 child: Builder(
                   builder: (context) {
                     final displayFieldNames = getDisplayFieldNames();
@@ -240,33 +230,13 @@ class FocListViewState extends JsonFormState<FocListView> {
                       return displayFieldNames.contains(lower);
                     }).toList();
                     return DataTable(
-                      headingRowColor:
-                          MaterialStateProperty.resolveWith<Color?>(
-                              (states) => const Color(0xFF232946)),
-                      headingTextStyle: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 17,
-                        letterSpacing: 1.1,
-                      ),
-                      dataRowColor:
-                          MaterialStateProperty.resolveWith<Color?>((states) {
-                        if (states.contains(MaterialState.selected)) {
-                          return Colors.deepPurple.withOpacity(0.10);
+                      dataRowColor: WidgetStateProperty.resolveWith<Color?>(
+                          (states) {
+                        if (states.contains(WidgetState.hovered)) {
+                          return colorScheme.primary.withValues(alpha: 0.06);
                         }
-                        if (states.contains(MaterialState.hovered)) {
-                          return const Color(0xFFB8C1EC).withOpacity(0.35);
-                        }
-                        return states.contains(MaterialState.focused)
-                            ? Colors.blue.withOpacity(0.10)
-                            : null;
+                        return null;
                       }),
-                      dataTextStyle: const TextStyle(
-                        fontSize: 15,
-                        color: Colors.black,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      dividerThickness: 1.2,
                       columnSpacing: 32,
                       horizontalMargin: 22,
                       columns: [
@@ -278,18 +248,8 @@ class FocListViewState extends JsonFormState<FocListView> {
                         const DataColumn(label: Text('Actions')),
                       ],
                       rows: focEntityList.asMap().entries.map((entry) {
-                        final index = entry.key;
                         final item = entry.value;
                         return DataRow(
-                          color: MaterialStateProperty.resolveWith<Color?>(
-                              (states) {
-                            if (states.contains(MaterialState.hovered)) {
-                              return const Color(0xFFB8C1EC).withOpacity(0.35);
-                            }
-                            return index % 2 == 0
-                                ? const Color(0xFFF4F6FB)
-                                : const Color(0xFFF9F9FB);
-                          }),
                           cells: [
                             ...displayFields.map((field) {
                               return DataCell(
@@ -300,13 +260,13 @@ class FocListViewState extends JsonFormState<FocListView> {
                               IconButton(
                                 icon: const Icon(Icons.edit),
                                 tooltip: 'Edit',
-                                color: const Color(0xFF4A00E0),
+                                color: colorScheme.primary,
                                 onPressed: () => editItem(item),
                               ),
                               IconButton(
                                 icon: const Icon(Icons.delete),
                                 tooltip: 'Delete',
-                                color: Colors.redAccent,
+                                color: colorScheme.error,
                                 onPressed: () => deleteItem(item),
                               ),
                             ])),

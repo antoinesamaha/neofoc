@@ -31,6 +31,8 @@ class Config {
       'Neo Foc Application'; // Name of the application, to be set by the using package
   static IconData appIcon = Icons
       .construction; // Path to the application icon, to be set by the using package
+  static Color seedColor = const Color(
+      0xFF00695C); // Brand color the app theme is generated from, to be set by the using package
   static List<Menu> menuItems = [
     Menu(Icons.people, "Users", "/users", "FUSER"),
     Menu(Icons.document_scanner, "Countries", "/countries", "Country",

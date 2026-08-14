@@ -919,17 +919,6 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                     ElevatedButton.icon(
                       icon: const Icon(Icons.add),
                       label: const Text('Add'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 22, vertical: 14),
-                        textStyle: const TextStyle(fontSize: 16),
-                        elevation: 0,
-                      ),
                       onPressed: () {
                         final defaultValues = <String, dynamic>{};
                         if (parentKey != null && widget.focEntity?.id != null) {
@@ -955,25 +944,11 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
               ),
               const SizedBox(height: 8),
             ],
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade400, width: 1.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: DataTable(
-                  columns: columns,
-                  rows: rows,
-                  headingRowColor: WidgetStateProperty.resolveWith<Color?>(
-                      (states) => Colors.blueGrey.shade700),
-                  headingTextStyle: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    letterSpacing: 1.1,
-                  ),
-                ),
+            Card(
+              clipBehavior: Clip.antiAlias,
+              child: DataTable(
+                columns: columns,
+                rows: rows,
               ),
             ),
             if (paginationEnabled && _paginationStates.containsKey(name)) ...[
@@ -1609,7 +1584,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                     ? pageSize
                     : pageSizeOptions.first,
                 underline: const SizedBox(),
-                style: const TextStyle(fontSize: 13, color: Colors.black),
+                style: TextStyle(
+                    fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
                 items: pageSizeOptions
                     .map((size) =>
                         DropdownMenuItem(value: size, child: Text('$size')))
@@ -1635,7 +1611,8 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
             '${totalCount > 0 ? state['start']! + 1 : 0}-'
             '${(state['start']! + pageSize).clamp(0, totalCount)}'
             ' of $totalCount',
-            style: const TextStyle(fontSize: 13, color: Colors.grey),
+            style: TextStyle(
+                fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           // Navigation buttons
           Row(
@@ -1806,27 +1783,28 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   Widget _buildFilterSection(BuildContext context, String tableName,
       List<Map<String, dynamic>> filters, MetaEntity? metaEntity) {
     final isSearching = _searchingTables.contains(tableName);
+    final colorScheme = Theme.of(context).colorScheme;
     return ExpansionTile(
       title: Row(
         children: [
-          Icon(Icons.filter_list, color: Colors.blueGrey.shade700, size: 20),
+          Icon(Icons.filter_list, color: colorScheme.primary, size: 20),
           const SizedBox(width: 8),
           Text('Filters',
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Colors.blueGrey.shade700)),
+                  color: colorScheme.primary)),
         ],
       ),
       tilePadding: const EdgeInsets.symmetric(horizontal: 12),
       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: Colors.grey.shade300),
+        side: BorderSide(color: colorScheme.outlineVariant),
       ),
       collapsedShape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: Colors.grey.shade300),
+        side: BorderSide(color: colorScheme.outlineVariant),
       ),
       children: [
         ...filters.map((filter) {
@@ -1934,14 +1912,6 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.search, size: 18),
               label: Text(isSearching ? 'Searching...' : 'Apply'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueGrey.shade700,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              ),
               onPressed: isSearching
                   ? null
                   : () async {

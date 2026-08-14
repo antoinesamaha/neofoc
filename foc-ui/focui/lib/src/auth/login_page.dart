@@ -73,104 +73,122 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: ConstrainedBox(
-              constraints:
-                  BoxConstraints(maxWidth: 400), // Set the maximum width
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Logo
-                  widget.logo ??
-                      //Icon(Config.appIcon, size: 80, color: Colors.blueAccent),
-                      Image.asset(
-                        'assets/images/logo.png',
-                        width: 400,
-                        height: 100,
-                        fit: BoxFit.contain,
-                      ),
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colorScheme.primaryContainer.withValues(alpha: 0.55),
+                colorScheme.surface,
+              ],
+            ),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: ConstrainedBox(
+                constraints:
+                    BoxConstraints(maxWidth: 400), // Set the maximum width
+                child: Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 40),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Logo
+                        widget.logo ??
+                            SizedBox(
+                              height: 80,
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
 
-                  SizedBox(height: 20),
-                  Text(Config.appName,
-                      style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blueAccent)),
-                  SizedBox(height: 40),
+                        SizedBox(height: 16),
+                        Text(Config.appName,
+                            style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface)),
+                        SizedBox(height: 36),
 
-                  // Username field
-                  TextField(
-                    controller: _usernameController,
-                    decoration: InputDecoration(
-                      labelText: "Username",
-                      prefixIcon: Icon(Icons.person),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                  SizedBox(height: 20),
-
-                  // Password field
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: "Password",
-                      prefixIcon: Icon(Icons.lock),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                  SizedBox(height: 10),
-
-                  // Remember Me & Forgot Password
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: _rememberMe,
-                            onChanged: (value) {
-                              setState(() => _rememberMe = value!);
-                            },
+                        // Username field
+                        TextField(
+                          controller: _usernameController,
+                          decoration: InputDecoration(
+                            labelText: "Username",
+                            prefixIcon: Icon(Icons.person),
                           ),
-                          Text("Remember Me")
-                        ],
-                      ),
-                      TextButton(
-                        onPressed: () {},
-                        child: Text("Forgot Password?",
-                            style: TextStyle(color: Colors.blueAccent)),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 20),
+                        ),
+                        SizedBox(height: 20),
 
-                  // Login Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        print("Logging in as: ${_usernameController.text}");
-                        _isLoading ? null : _login();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                      ),
-                      child: _isLoading
-                          ? CircularProgressIndicator(color: Colors.white)
-                          : Text("Sign In", style: TextStyle(fontSize: 18)),
+                        // Password field
+                        TextField(
+                          controller: _passwordController,
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            labelText: "Password",
+                            prefixIcon: Icon(Icons.lock),
+                          ),
+                        ),
+                        SizedBox(height: 10),
+
+                        // Remember Me & Forgot Password
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _rememberMe,
+                                  onChanged: (value) {
+                                    setState(() => _rememberMe = value!);
+                                  },
+                                ),
+                                Text("Remember Me")
+                              ],
+                            ),
+                            TextButton(
+                              onPressed: () {},
+                              child: Text("Forgot Password?"),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 20),
+
+                        // Login Button
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              print(
+                                  "Logging in as: ${_usernameController.text}");
+                              _isLoading ? null : _login();
+                            },
+                            child: _isLoading
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: colorScheme.onPrimary))
+                                : Text("Sign In",
+                                    style: TextStyle(fontSize: 16)),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ),

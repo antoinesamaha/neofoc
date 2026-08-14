@@ -121,7 +121,14 @@ class _MenuViewState extends State<MenuView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        //title: const Text('Entities Menu'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Config.appIcon),
+            const SizedBox(width: 10),
+            Text(Config.appName),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.lock_outline),
@@ -143,22 +150,34 @@ class _MenuViewState extends State<MenuView> {
       // In contrast to the default ListView constructor, which requires
       // building all Widgets up front, the ListView.builder constructor lazily
       // builds Widgets as they’re scrolled into view.
-      body: ListView.builder(
+      body: ListView.separated(
         // Providing a restorationId allows the ListView to restore the
         // scroll position when a user leaves and returns to the app after it
         // has been killed while running in the background.
         restorationId: 'sampleItemListView',
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         itemCount: items.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 6),
         itemBuilder: (BuildContext context, int index) {
           final item = items[index];
+          final colorScheme = Theme.of(context).colorScheme;
 
-          return ListTile(
-            leading: item.iconData != null
-                ? Icon(item.iconData)
-                : CircleAvatar(
-                    foregroundImage: AssetImage(item.iconImageFile),
-                  ),
-            title: Text(item.displayName),
+          return Card(
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            color: colorScheme.surfaceContainerHigh,
+            child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: colorScheme.primaryContainer,
+              foregroundColor: colorScheme.onPrimaryContainer,
+              foregroundImage: item.iconData == null
+                  ? AssetImage(item.iconImageFile)
+                  : null,
+              child: item.iconData != null ? Icon(item.iconData) : null,
+            ),
+            title: Text(item.displayName,
+                style: const TextStyle(fontWeight: FontWeight.w500)),
+            trailing: const Icon(Icons.chevron_right),
             onTap: () {
               // Navigate to the details page. If the user leaves and returns to
               // the app after it has been killed while running in the
@@ -196,6 +215,7 @@ class _MenuViewState extends State<MenuView> {
                 context.push(item.entityPath);
               }
             },
+            ),
           );
 
           // Navigate to the details page. If the user leaves and returns to
