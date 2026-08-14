@@ -705,6 +705,7 @@ public class FocGroup extends FocObject{
   @Override
   public void toJson_Embedded(B01JsonBuilder builder) {
     builder.beginObject();
+    builder.appendKeyValue("REF", getReference().getInteger());
     appendKeyValueForFieldName(builder, null, "NAME");
     appendKeyValueForFieldName(builder, null, "DESCRIP");
     builder.endObject();

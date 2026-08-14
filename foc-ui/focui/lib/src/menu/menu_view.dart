@@ -1,19 +1,121 @@
 import 'package:flutter/material.dart';
+import 'package:focui/main.dart';
+import 'package:focui/src/auth/auth_service.dart';
 import 'package:focui/src/entities/foc_entity_feature/foc_list_view.dart';
 import 'package:focui/src/entities/meta_feature/meta_entity.dart';
 import 'package:focui/src/entities/meta_feature/meta_service.dart';
 import 'package:focui/src/settings/config.dart';
+import 'package:go_router/go_router.dart';
 
 import '../settings/settings_view.dart';
 import 'menu.dart';
 
 /// Displays a list of SampleItems.
-class MenuView extends StatelessWidget {
-  MenuView({super.key});
+class MenuView extends StatefulWidget {
+  const MenuView({super.key});
 
   static const routeName = '/';
 
+  @override
+  State<MenuView> createState() => _MenuViewState();
+}
+
+class _MenuViewState extends State<MenuView> {
   final List<Menu> items = Config.menuItems;
+
+  @override
+  void initState() {
+    super.initState();
+    MetaService().fetchItems();
+  }
+
+  Future<void> _showChangePasswordDialog(BuildContext context) async {
+    final formKey = GlobalKey<FormState>();
+    final oldPasswordCtrl = TextEditingController();
+    final newPasswordCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    bool loading = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Change Password'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: oldPasswordCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Current Password'),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: newPasswordCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'New Password'),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: confirmCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Confirm New Password'),
+                  validator: (v) => v != newPasswordCtrl.text
+                      ? 'Passwords do not match'
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: loading
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setState(() => loading = true);
+                      try {
+                        final authService = getIt<AuthService>();
+                        await authService.changePassword(
+                          authService.currentUsername,
+                          oldPasswordCtrl.text,
+                          newPasswordCtrl.text,
+                        );
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Password changed successfully')),
+                        );
+                      } catch (e) {
+                        setState(() => loading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                        );
+                      }
+                    },
+              child: loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Change'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,11 +124,13 @@ class MenuView extends StatelessWidget {
         //title: const Text('Entities Menu'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.lock_outline),
+            tooltip: 'Change Password',
+            onPressed: () => _showChangePasswordDialog(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              // Navigate to the settings page. If the user leaves and returns
-              // to the app after it has been killed while running in the
-              // background, the navigation stack is restored.
               Navigator.restorablePushNamed(context, SettingsView.routeName);
             },
           ),
@@ -89,10 +193,7 @@ class MenuView extends StatelessWidget {
                 }
               } else {
                 // If the entity is null, Go to the menu path
-                Navigator.restorablePushNamed(
-                  context,
-                  item.entityPath,
-                );
+                context.push(item.entityPath);
               }
             },
           );

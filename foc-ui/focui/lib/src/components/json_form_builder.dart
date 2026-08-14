@@ -5,6 +5,7 @@ import 'package:focui/src/entities/meta_feature/meta_service.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import '../entities/foc_entity_feature/foc_cache.dart';
 import '../entities/foc_entity_feature/foc_entity.dart';
 import '../entities/foc_entity_feature/foc_service.dart';
 import '../entities/meta_feature/meta_entity.dart';
@@ -42,6 +43,14 @@ class JsonFormBuilder extends StatefulWidget {
   /// Whether to show debug information
   final bool enableDebug;
 
+  /// Hidden values injected on save but not rendered in the form (e.g. parent FK)
+  final Map<String, dynamic>? hiddenValues;
+
+  /// Whether to render the root-level "title" (if any) inline in the form
+  /// body. Set to false when the caller already surfaces that title
+  /// elsewhere (e.g. as the screen's AppBar title) to avoid showing it twice.
+  final bool showRootTitle;
+
   final JsonFormState state;
 
   const JsonFormBuilder(
@@ -58,6 +67,8 @@ class JsonFormBuilder extends StatefulWidget {
       this.autovalidateMode = AutovalidateMode.disabled,
       this.formKey,
       this.enableDebug = false,
+      this.hiddenValues,
+      this.showRootTitle = true,
       required this.state})
       : assert(
           formData != null || jsonString != null || assetPath != null,
@@ -73,6 +84,31 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   Map<String, dynamic>? _parsedFormData;
   bool _isLoading = true;
   String? _error;
+
+  // Filter states keyed by "{tableName}_{filterKey}"
+  // Each value: { 'operator': String, 'value': dynamic, 'value2': dynamic }
+  final Map<String, Map<String, dynamic>> _filterStates = {};
+
+  // Server-side search results keyed by table field name
+  final Map<String, List<FocEntity>> _searchResults = {};
+  // Tables currently running a search
+  final Set<String> _searchingTables = {};
+
+  // Pagination state keyed by table field name
+  // Each value: { 'start': int, 'count': int, 'totalCount': int, 'currentPage': int }
+  final Map<String, Map<String, int>> _paginationStates = {};
+  // Track tables that have already scheduled their initial paginated load
+  final Set<String> _initialLoadScheduled = {};
+
+  // Resolved foreign key cache: "fieldName_rowId" → FocEntity
+  final Map<String, FocEntity> _resolvedCache = {};
+
+  // Futures for foc_dropdown fields keyed by entity storage name
+  final Map<String, Future<List<FocEntity>>> _entityDropdownFutures = {};
+
+  // Quick search per data_table: keyed by table field name
+  final Map<String, TextEditingController> _quickSearchControllers = {};
+  final Map<String, String> _quickSearchTexts = {};
 
   @override
   void initState() {
@@ -154,18 +190,19 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     return Container(
         child: FormBuilder(
       key: _formKey,
-      initialValue: widget.initialValues ?? {},
+      initialValue: _sanitizeInitialValues(
+      widget.initialValues, _collectDateFieldNames(_parsedFormData!)),
       autovalidateMode: widget.autovalidateMode,
       onChanged: () {
         if (widget.onChanged != null) {
           widget.onChanged!(_formKey.currentState?.value);
         }
       },
-      child: _buildFormFields(_parsedFormData!),
+      child: _buildFormFields(_parsedFormData!, isRoot: true),
     ));
   }
 
-  Widget _buildFormFields(Map<String, dynamic> formData) {
+  Widget _buildFormFields(Map<String, dynamic> formData, {bool isRoot = false}) {
     final fields = formData['fields'] as List<dynamic>? ?? [];
     final layout = formData['layout'] as String? ?? 'column';
     final title = formData['title'] as String?;
@@ -174,8 +211,9 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
 
     List<Widget> fieldWidgets = [];
 
-    // Add title if provided
-    if (title != null) {
+    // Add title if provided (unless it's the root title and the caller is
+    // already showing it elsewhere, e.g. as the screen's AppBar title)
+    if (title != null && (!isRoot || widget.showRootTitle)) {
       fieldWidgets.add(
         Padding(
           padding: EdgeInsets.only(bottom: spacing),
@@ -252,16 +290,17 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     switch (layout) {
       case 'row':
         if (fieldWidgets.isEmpty) return const SizedBox.shrink();
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        final rowChildren = <Widget>[];
+        for (int i = 0; i < fieldWidgets.length; i++) {
+          rowChildren.add(Expanded(child: fieldWidgets[i]));
+          if (i < fieldWidgets.length - 1) {
+            rowChildren.add(SizedBox(width: spacing));
+          }
+        }
+        return IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: fieldWidgets
-                .map((w) => Padding(
-                      padding: EdgeInsets.only(right: spacing),
-                      child: w,
-                    ))
-                .toList(),
+            children: rowChildren,
           ),
         );
       case 'wrap':
@@ -352,6 +391,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       case 'integer':
         return FormBuilderTextField(
           name: name,
+          initialValue: widget.initialValues?[name]?.toString(),
           decoration: decoration,
           enabled: enabled,
           validator: FormBuilderValidators.compose(validators),
@@ -384,8 +424,11 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       case 'dropdown':
       case 'select':
         final options = fieldData['options'] as List<dynamic>? ?? [];
+        final rawDropdownVal = widget.initialValues?[name];
+        final dropdownVal = rawDropdownVal?.toString();
         return FormBuilderDropdown<String>(
           name: name,
+          initialValue: dropdownVal,
           decoration: decoration,
           enabled: enabled,
           validator: FormBuilderValidators.compose(validators),
@@ -397,10 +440,90 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
               .toList(),
         );
 
+      case 'foc_dropdown':
+        // meta_entity is optional: infer from the parent entity's field metadata
+        String? entityStorageName = fieldData['meta_entity'] as String?;
+        if (entityStorageName == null) {
+          final metaField = widget.metaEntity?.fields
+              .where((f) => f.dbName == name || f.name == name)
+              .firstOrNull;
+          entityStorageName = metaField?.storageName;
+        }
+        final displayField = fieldData['display_field'] as String? ?? 'NAME';
+        if (entityStorageName == null) return null;
+
+        final referencedMeta = MetaService().getEntityByName(entityStorageName);
+        if (referencedMeta == null) return null;
+
+        _entityDropdownFutures.putIfAbsent(
+          entityStorageName,
+          () => FocService().fetchItems(referencedMeta),
+        );
+
+        // Normalise the FK value to a String, treating 0 as null because FOC
+        // uses 0 to represent an unset foreign key reference.
+        final rawFocDrop = widget.initialValues?[name];
+        final focDropInitial = (rawFocDrop == null ||
+                rawFocDrop == 0 ||
+                rawFocDrop.toString() == '0')
+            ? null
+            : rawFocDrop.toString();
+
+        return FutureBuilder<List<FocEntity>>(
+          future: _entityDropdownFutures[entityStorageName],
+          builder: (context, snapshot) {
+            final isLoaded = snapshot.hasData;
+            final focDropItems = snapshot.data ?? [];
+
+            // Real items shown once the entity list has loaded
+            final realItems = <DropdownMenuItem<String>>[
+              if (!required)
+                const DropdownMenuItem<String>(
+                  value: null,
+                  child: Text('— none —'),
+                ),
+              ...focDropItems
+                  .where((e) => e.id != null)
+                  .map((e) => DropdownMenuItem<String>(
+                        value: '${e.id}',
+                        child: Text(
+                            e[displayField]?.toString() ?? '${e.id}'),
+                      )),
+            ];
+
+            // While loading keep a single placeholder item whose value matches
+            // focDropInitial so Flutter's assertion (value must be in items)
+            // never fires during the transition.
+            final loadingItems = <DropdownMenuItem<String>>[
+              DropdownMenuItem<String>(
+                value: focDropInitial,
+                child: const Text('Loading…'),
+              ),
+            ];
+
+            return FormBuilderDropdown<String>(
+              name: name,
+              initialValue: focDropInitial,
+              decoration: decoration,
+              enabled: enabled && isLoaded,
+              validator: FormBuilderValidators.compose(validators),
+              // Convert the selected String id back to int on save
+              valueTransformer: (val) =>
+                  val == null ? null : int.tryParse(val),
+              items: isLoaded ? realItems : loadingItems,
+            );
+          },
+        );
+
       case 'checkbox':
       case 'boolean':
+        final rawBoolVal = widget.initialValues?[name];
+        final boolVal = rawBoolVal == true ||
+            rawBoolVal == 1 ||
+            rawBoolVal?.toString().toLowerCase() == 'true';
         return FormBuilderCheckbox(
           name: name,
+          initialValue: boolVal,
           enabled: enabled,
           validator: FormBuilderValidators.compose(
               validators.cast<FormFieldValidator<bool>>()),
@@ -409,8 +532,13 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         );
 
       case 'switch':
+        final rawSwitchVal = widget.initialValues?[name];
+        final switchVal = rawSwitchVal == true ||
+            rawSwitchVal == 1 ||
+            rawSwitchVal?.toString().toLowerCase() == 'true';
         return FormBuilderSwitch(
           name: name,
+          initialValue: switchVal,
           enabled: enabled,
           validator: FormBuilderValidators.compose(
               validators.cast<FormFieldValidator<bool>>()),
@@ -462,6 +590,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       case 'date':
         return FormBuilderDateTimePicker(
           name: name,
+          initialValue: _parseDateTime(widget.initialValues?[name]),
           decoration: decoration,
           enabled: enabled,
           validator: FormBuilderValidators.compose(
@@ -473,6 +602,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       case 'time':
         return FormBuilderDateTimePicker(
           name: name,
+          initialValue: _parseDateTime(widget.initialValues?[name]),
           decoration: decoration,
           enabled: enabled,
           validator: FormBuilderValidators.compose(
@@ -483,6 +613,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
       case 'datetime':
         return FormBuilderDateTimePicker(
           name: name,
+          initialValue: _parseDateTime(widget.initialValues?[name]),
           decoration: decoration,
           enabled: enabled,
           validator: FormBuilderValidators.compose(
@@ -561,10 +692,39 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           style: _getTextStyle(fieldData['style'] as Map<String, dynamic>?),
         );
 
+      case 'json':
+        return _buildJsonField(
+          name: name,
+          decoration: decoration,
+          enabled: enabled,
+          validators: validators,
+          label: label,
+        );
+
       case 'data_table':
         final columnsData = fieldData['columns'] as List<dynamic>? ?? [];
+        final tableOptions =
+            fieldData['table_options'] as Map<String, dynamic>? ?? {};
+        final showAddButton = tableOptions['showAddButton'] ?? true;
+        final showEditButton = tableOptions['showEditButton'] ?? true;
+        final showDeleteButton = tableOptions['showDeleteButton'] ?? true;
+        final showActionsColumn =
+            showEditButton == true || showDeleteButton == true;
+        final showQuickSearch = tableOptions['showQuickSearch'] ?? true;
+        final parentKey = tableOptions['parent_key'] as String?;
+
+        // Parse pagination config
+        final paginationConfig =
+            tableOptions['pagination'] as Map<String, dynamic>?;
+        final paginationEnabled = paginationConfig != null;
 
         var tableMetaEntity = widget.metaEntity;
+
+        // Check for meta_entity in field definition - this determines what form to open for Add/Edit
+        if (fieldData['meta_entity'] != null) {
+          tableMetaEntity =
+              MetaService().getEntityByName(fieldData['meta_entity']);
+        }
 
         // Try to get rows from multiple sources in priority order:
         // 1. Explicit rows in fieldData
@@ -580,15 +740,82 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
           final fieldValue = widget.focEntity!.properties[name];
           if (fieldValue is List) {
             rowsData = fieldValue;
-            if (fieldData['meta_entity'] != null) {
-              tableMetaEntity =
-                  MetaService().getEntityByName(fieldData['meta_entity']);
-            }
           } else {
             rowsData = [];
           }
         } else {
           rowsData = [];
+        }
+
+        // Parse filters
+        final filtersData = (tableOptions['filters'] as List<dynamic>?)
+            ?.map((f) => f as Map<String, dynamic>)
+            .toList();
+
+        // Cached entities are fully resident client-side already, and the
+        // backend /search endpoint refuses them outright - so they're
+        // filtered/paginated locally instead of via server-side search.
+        final isCachedEntity = tableMetaEntity?.isListInCache ?? false;
+
+        // Initialize pagination and trigger initial load if enabled
+        if (paginationEnabled && tableMetaEntity != null) {
+          _initPaginationState(name, paginationConfig);
+          if (!isCachedEntity &&
+              !_searchResults.containsKey(name) &&
+              !_searchingTables.contains(name) &&
+              !_initialLoadScheduled.contains(name)) {
+            _initialLoadScheduled.add(name);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _performPaginatedSearch(name, filtersData, tableMetaEntity!);
+            });
+          }
+        }
+
+        // Use server-side search results if available, otherwise fallback to client-side
+        if (paginationEnabled && isCachedEntity) {
+          // Full list is already in rowsData (from widget.focEntityList) -
+          // just apply any configured filters locally.
+          if (filtersData != null && filtersData.isNotEmpty) {
+            rowsData = _applyFilters(name, filtersData, rowsData, tableMetaEntity);
+          }
+        } else if (_searchResults.containsKey(name)) {
+          rowsData = _searchResults[name]!;
+        } else if (paginationEnabled) {
+          // Pagination enabled but no results yet - show empty while loading
+          rowsData = [];
+        } else if (filtersData != null &&
+            filtersData.isNotEmpty &&
+            tableMetaEntity == null) {
+          // Client-side fallback only when no metaEntity for server search
+          rowsData = _applyFilters(name, filtersData, rowsData, tableMetaEntity);
+        }
+
+        // Apply quick search filter (client-side, over the displayed columns
+        // - including resolved foreign-key columns like "instrument.name")
+        _quickSearchControllers.putIfAbsent(name, () => TextEditingController());
+        final quickSearchText = _quickSearchTexts[name] ?? '';
+        if (quickSearchText.isNotEmpty) {
+          final query = quickSearchText.toLowerCase();
+          rowsData = rowsData.where((row) {
+            for (final col in columnsData) {
+              final key = col['key']?.toString() ?? '';
+              if (key.isEmpty) continue;
+              final text =
+                  _getCellSearchText(row, key, tableMetaEntity).toLowerCase();
+              if (text.contains(query)) return true;
+            }
+            return false;
+          }).toList();
+        }
+
+        // For cached entities, the pagination bar reflects the filtered
+        // count, then the current page is sliced out of the local list.
+        if (paginationEnabled && isCachedEntity) {
+          final paginationState = _paginationStates[name]!;
+          paginationState['totalCount'] = rowsData.length;
+          final start = paginationState['start']!;
+          final count = paginationState['count']!;
+          rowsData = rowsData.skip(start).take(count).toList();
         }
 
         final columns = [
@@ -598,42 +825,47 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
               )),
           ...widget.state
               .getCustomColumns(), // Add custom columns from subclass
-          const DataColumn(
-            label: Text('Actions'),
-          ),
+          if (showActionsColumn)
+            const DataColumn(
+              label: Text('Actions'),
+            ),
         ];
 
         final rows = rowsData.map<DataRow>((row) {
           final cells = [
             ...columnsData.map((col) {
               final key = col['key']?.toString() ?? '';
+              final cellVal = row[key];
+              final cellBool = cellVal == true ||
+                  cellVal == 1 ||
+                  cellVal?.toString().toLowerCase() == 'true';
               return DataCell(col['checkbox'] == true
-                  ? Icon(
-                      row[key] ? Icons.check_circle : Icons.cancel,
-                      color: row[key] ? Colors.green : Colors.red,
-                    )
-                  : Text(row[key]?.toString() ?? ''));
+                  ? _buildCheckboxCell(col, cellBool)
+                  : _buildCellValue(row, key, tableMetaEntity));
             }),
             ...widget.state
                 .getCustomDataCells(row), // Add custom data cells from subclass
-            DataCell(Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.open_in_new),
-                  tooltip: 'Open',
-                  onPressed: () {
-                    _editFocEntity(row);
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete),
-                  tooltip: 'Delete',
-                  onPressed: () {
-                    _deleteFocEntity(row);
-                  },
-                ),
-              ],
-            )),
+            if (showActionsColumn)
+              DataCell(Row(
+                children: [
+                  if (showEditButton == true)
+                    IconButton(
+                      icon: const Icon(Icons.open_in_new),
+                      tooltip: 'Open',
+                      onPressed: () {
+                        _editFocEntity(row);
+                      },
+                    ),
+                  if (showDeleteButton == true)
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      tooltip: 'Delete',
+                      onPressed: () {
+                        _deleteFocEntity(row);
+                      },
+                    ),
+                ],
+              )),
           ];
           return DataRow(cells: cells);
         }).toList();
@@ -641,39 +873,88 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add ++'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 22, vertical: 14),
-                    textStyle: const TextStyle(fontSize: 16),
-                    elevation: 0,
-                  ),
-                  onPressed: () {
-                    // Open empty details view for new item
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FocDetailsView(
-                          metaEntity: tableMetaEntity!, //widget.metaEntity!,
-                          itemId: null, // null means create new
+            if (filtersData != null && filtersData.isNotEmpty) ...[
+              _buildFilterSection(context, name, filtersData, tableMetaEntity),
+              const SizedBox(height: 10),
+            ],
+            if (showQuickSearch == true || showAddButton == true) ...[
+              Row(
+                children: [
+                  if (showQuickSearch == true) ...[
+                    SizedBox(
+                      width: 300,
+                      child: TextField(
+                        controller: _quickSearchControllers[name],
+                        decoration: InputDecoration(
+                          hintText: 'Search...',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: (_quickSearchTexts[name]?.isNotEmpty ?? false)
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _quickSearchControllers[name]!.clear();
+                                    setState(() {
+                                      _quickSearchTexts[name] = '';
+                                      _resetPaginationToFirstPage(name);
+                                    });
+                                  },
+                                )
+                              : null,
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 12),
                         ),
+                        onSubmitted: (value) => setState(() {
+                          _quickSearchTexts[name] = value;
+                          _resetPaginationToFirstPage(name);
+                        }),
                       ),
-                    );
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
+                    ),
+                  ],
+                  const Spacer(),
+                  if (showAddButton == true)
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 22, vertical: 14),
+                        textStyle: const TextStyle(fontSize: 16),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        final defaultValues = <String, dynamic>{};
+                        if (parentKey != null && widget.focEntity?.id != null) {
+                          defaultValues[parentKey] = widget.focEntity!.id;
+                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FocDetailsView(
+                              metaEntity: tableMetaEntity!,
+                              itemId: null,
+                              defaultValues: defaultValues.isNotEmpty ? defaultValues : null,
+                            ),
+                          ),
+                        ).then((newItem) {
+                          if (newItem != null) {
+                            widget.state.refreshData();
+                          }
+                        });
+                      },
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
             Container(
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.grey.shade400, width: 1.2),
@@ -684,7 +965,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                 child: DataTable(
                   columns: columns,
                   rows: rows,
-                  headingRowColor: MaterialStateProperty.resolveWith<Color?>(
+                  headingRowColor: WidgetStateProperty.resolveWith<Color?>(
                       (states) => Colors.blueGrey.shade700),
                   headingTextStyle: const TextStyle(
                     color: Colors.white,
@@ -695,6 +976,10 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                 ),
               ),
             ),
+            if (paginationEnabled && _paginationStates.containsKey(name)) ...[
+              const SizedBox(height: 8),
+              _buildPaginationBar(name, filtersData, tableMetaEntity),
+            ],
           ],
         );
 
@@ -707,6 +992,222 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         }
         return null;
     }
+  }
+
+  Widget _buildJsonField({
+    required String name,
+    required InputDecoration decoration,
+    required bool enabled,
+    required List<String? Function(String?)> validators,
+    String? label,
+  }) {
+    // Convert initial value to JSON string if it's a Map (e.g., from JSONB backend field)
+    final rawInitial = widget.initialValues?[name];
+    String? initialValue;
+    if (rawInitial is Map || rawInitial is List) {
+      initialValue = const JsonEncoder.withIndent('  ').convert(rawInitial);
+    } else if (rawInitial is String) {
+      initialValue = rawInitial;
+    }
+
+    return FormBuilderTextField(
+      name: name,
+      initialValue: initialValue,
+      decoration: decoration.copyWith(
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.code, size: 20),
+          tooltip: 'Format JSON',
+          onPressed: enabled
+              ? () {
+                  final currentValue = _formKey.currentState?.fields[name]?.value as String?;
+                  if (currentValue != null && currentValue.isNotEmpty) {
+                    try {
+                      // Convert single quotes to double quotes first
+                      final normalized = _normalizeJsonQuotes(currentValue);
+
+                      // Parse and prettify
+                      final decoded = json.decode(normalized);
+                      final prettified = const JsonEncoder.withIndent('  ').convert(decoded);
+
+                      // Update field with prettified JSON (always uses double quotes)
+                      _formKey.currentState?.fields[name]?.didChange(prettified);
+                    } catch (e) {
+                      if (widget.enableDebug) {
+                        debugPrint('JSON prettify error: $e');
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Invalid JSON: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  }
+                }
+              : null,
+        ),
+        helperText: "JSON format (accepts ' or \", outputs standard JSON with \")",
+      ),
+      enabled: enabled,
+      maxLines: null,
+      minLines: 5,
+      style: const TextStyle(
+        fontFamily: 'monospace',
+        fontSize: 13,
+      ),
+      validator: FormBuilderValidators.compose([
+        ...validators,
+        (value) {
+          if (value == null || value.isEmpty) return null;
+          try {
+            // Try parsing with normalized quotes
+            final normalized = _normalizeJsonQuotes(value);
+            json.decode(normalized);
+            return null;
+          } catch (e) {
+            return 'Invalid JSON: ${e.toString()}';
+          }
+        },
+      ]),
+      valueTransformer: (value) {
+        if (value == null || value.isEmpty) return null;
+        try {
+          // Validate and return as string
+          final normalized = _normalizeJsonQuotes(value);
+          json.decode(normalized);
+          return value; // Return original format
+        } catch (e) {
+          return value;
+        }
+      },
+    );
+  }
+
+  Widget _buildCheckboxCell(Map<String, dynamic> col, bool value) {
+    if (col['hide_when_false'] == true && !value) {
+      return const SizedBox.shrink();
+    }
+    if (col['hide_when_false'] == true && value) {
+      return Tooltip(
+        message: col['label']?.toString() ?? '',
+        child: const Icon(
+          Icons.pause_circle_filled,
+          color: Colors.blueGrey,
+          size: 22,
+        ),
+      );
+    }
+    return Icon(
+      value ? Icons.check_circle : Icons.cancel,
+      color: value ? Colors.green : Colors.red,
+    );
+  }
+
+  /// Plain-text value for a (possibly dotted, foreign-key) column key, for
+  /// searching/filtering. Mirrors _buildCellValue's resolution but never
+  /// triggers a new fetch: it reads whatever's already in _resolvedCache,
+  /// falling back to the shared FocCache (already fully populated for any
+  /// cacheable referenced entity, e.g. instrument, as soon as one cell
+  /// referencing it has been rendered).
+  String _getCellSearchText(dynamic row, String key, MetaEntity? metaEntity) {
+    if (!key.contains('.')) {
+      if (row is Map) return row[key]?.toString() ?? '';
+      if (row is FocEntity) return row[key]?.toString() ?? '';
+      return '';
+    }
+
+    final parts = key.split('.');
+    final fieldName = parts[0];
+    final nestedProp = parts[1];
+
+    FocEntity? entity;
+    if (row is FocEntity) {
+      entity = row;
+    } else if (row is Map<String, dynamic> && metaEntity != null) {
+      entity = FocEntity(metaEntity, row);
+    }
+    if (entity == null) return '';
+
+    final rawFkId = entity[fieldName];
+    if (rawFkId == null) return '';
+
+    final cacheKey = '${fieldName}_$rawFkId';
+    if (_resolvedCache.containsKey(cacheKey)) {
+      return _resolvedCache[cacheKey]![nestedProp]?.toString() ?? '';
+    }
+
+    final metaField =
+        entity.metaEntity.fields.where((f) => f.name == fieldName).firstOrNull;
+    final storageName = metaField?.storageName;
+    if (storageName != null) {
+      final id = rawFkId is int ? rawFkId : int.tryParse(rawFkId.toString());
+      if (id != null && FocCache().has(storageName, id)) {
+        return FocCache().get(storageName, id)?[nestedProp]?.toString() ?? '';
+      }
+    }
+    return '';
+  }
+
+  Widget _buildCellValue(dynamic row, String key, MetaEntity? metaEntity) {
+    if (!key.contains('.')) {
+      return Text(row[key]?.toString() ?? '');
+    }
+
+    final parts = key.split('.');
+    final fieldName = parts[0];
+    final nestedProp = parts[1];
+
+    // Wrap raw map into FocEntity if we have the meta
+    FocEntity? entity;
+    if (row is FocEntity) {
+      entity = row;
+    } else if (row is Map<String, dynamic> && metaEntity != null) {
+      entity = FocEntity(metaEntity, row);
+    }
+
+    if (entity == null) return const Text('');
+
+    // If the FK value is null, nothing to resolve
+    final rawFkId = entity[fieldName];
+    if (rawFkId == null) return const Text('');
+
+    final cacheKey = '${fieldName}_$rawFkId';
+
+    if (_resolvedCache.containsKey(cacheKey)) {
+      return Text(_resolvedCache[cacheKey]![nestedProp]?.toString() ?? '');
+    }
+
+    FocService().resolveField(entity, fieldName).then((resolved) {
+      if (resolved != null && mounted) {
+        setState(() => _resolvedCache[cacheKey] = resolved);
+      }
+    });
+
+    return const Text('...');
+  }
+
+  /// Converts single quotes to double quotes for JSON parsing
+  /// Handles FOC ORM convention where properties use single quotes
+  /// Also fixes common malformations like unclosed quotes for empty strings
+  String _normalizeJsonQuotes(String jsonString) {
+    String normalized = jsonString;
+
+    // Fix malformed empty strings: :" followed by comma or } should be :""
+    normalized = normalized.replaceAll(RegExp(r':"([,}\]])'), r':""$1');
+
+    // Fix malformed empty strings with single quotes: :" followed by comma or } should be :''
+    // This pattern catches cases like 'notes':", which should be 'notes':''
+    normalized = normalized.replaceAll(RegExp(r":'([,}\]])"), r":''$1");
+
+    // If it already uses double quotes (standard JSON), just return after fixes
+    if (!normalized.contains("'")) {
+      return normalized;
+    }
+
+    // Convert single quotes to double quotes for JSON parsing
+    // This works for most cases where single quotes are used for keys and string values
+    return normalized.replaceAll("'", '"');
   }
 
   List<String? Function(String?)> _buildValidators(
@@ -776,8 +1277,55 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
   }
 
   dynamic _getDateFormat(String? format) {
-    // You can implement custom date formatting here
-    // For now, returning null to use default format
+    return null;
+  }
+
+  Set<String> _collectDateFieldNames(Map<String, dynamic> formData) {
+    final result = <String>{};
+    final fields = formData['fields'] as List<dynamic>? ?? [];
+    for (final field in fields) {
+      if (field is! Map<String, dynamic>) continue;
+      final type = field['type'] as String?;
+      final name = field['name'] as String?;
+      if (name != null && (type == 'date' || type == 'datetime' || type == 'time')) {
+        result.add(name);
+      }
+      if (field['fields'] != null) {
+        result.addAll(_collectDateFieldNames(field));
+      }
+    }
+    return result;
+  }
+
+  Map<String, dynamic> _sanitizeInitialValues(
+      Map<String, dynamic>? values, [Set<String> dateFields = const {}]) {
+    if (values == null) return {};
+    return values.map((k, v) {
+      if (v == null || v == '') return MapEntry(k, null);
+      if (dateFields.contains(k)) return MapEntry(k, _parseDateTime(v));
+      return MapEntry(k, v);
+    });
+  }
+
+  DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    final s = value.toString().trim();
+    if (s.isEmpty || s == 'null') return null;
+    // Try ISO 8601 first (yyyy-MM-dd or yyyy-MM-ddTHH:mm:ss)
+    final iso = DateTime.tryParse(s);
+    if (iso != null) return iso;
+    // Try dd/MM/yyyy
+    final parts = s.split('/');
+    if (parts.length == 3) {
+      final day = int.tryParse(parts[0]);
+      final month = int.tryParse(parts[1]);
+      final year = int.tryParse(parts[2]);
+      if (day != null && month != null && year != null) {
+        return DateTime.tryParse(
+            '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}');
+      }
+    }
     return null;
   }
 
@@ -848,6 +1396,12 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         if (widget.focEntity != null && widget.focEntity!.id != null) {
           updatedValues['id'] = widget.focEntity!.id;
         }
+        // Inject hidden values (e.g. parent FK) that are not rendered in the form
+        if (widget.hiddenValues != null) {
+          for (final entry in widget.hiddenValues!.entries) {
+            updatedValues.putIfAbsent(entry.key, () => entry.value);
+          }
+        }
         FocEntity newEntity = FocEntity(metaEntity, updatedValues);
         //final entity = fromJson != null ? fromJson(values) : values;
 //        if (entity is FocEntity) {
@@ -856,12 +1410,9 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
         } else {
           await FocService().insertItem(metaEntity, newEntity);
         }
-        Navigator.pop(context, newEntity);
-        // } else {
-        //   // If not FocEntity, just return values
-        //   return values;
-        // }
+        if (context.mounted) Navigator.pop(context, newEntity);
       } catch (e) {
+        debugPrint('Failed to save item: $e');
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -869,7 +1420,7 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
                 backgroundColor: Colors.red),
           );
         }
-        print('Failed to save item: $e');
+        return null;
       }
       return values;
     }
@@ -891,6 +1442,677 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     return _formKey.currentState?.value;
   }
 
+  // ── Filter helpers ──────────────────────────────────────────────────
+
+  List<String> _getOperatorsForType(String type) {
+    switch (type) {
+      case 'string':
+        return ['contains', '=', '!=', 'isNull', 'isNotNull'];
+      case 'numeric':
+        return [
+          '=',
+          '>=',
+          '<=',
+          '>',
+          '<',
+          '!=',
+          'between',
+          'isNull',
+          'isNotNull'
+        ];
+      case 'date':
+        return ['=', '>=', '<=', 'between', 'isNull', 'isNotNull'];
+      default:
+        return ['='];
+    }
+  }
+
+  String _operatorLabel(String op) {
+    switch (op) {
+      case 'contains':
+        return 'Contains';
+      case 'like':
+        return 'Like';
+      case '=':
+        return 'Equals';
+      case '!=':
+        return 'Not equals';
+      case '>=':
+        return '>=';
+      case '<=':
+        return '<=';
+      case '>':
+        return '>';
+      case '<':
+        return '<';
+      case 'between':
+        return 'Between';
+      case 'isNull':
+        return 'Is Null';
+      case 'isNotNull':
+        return 'Is Not Null';
+      case 'in':
+        return 'In';
+      default:
+        return op;
+    }
+  }
+
+  Map<String, dynamic> _getFilterState(String tableName, String key) {
+    final stateKey = '${tableName}_$key';
+    return _filterStates[stateKey] ??= {
+      'operator': null,
+      'value': null,
+      'value2': null,
+    };
+  }
+
+  /// Resets a table's pagination back to page 1. Called whenever the quick
+  /// search text changes, so a new search slices from the start of the
+  /// filtered results instead of a stale offset from a previous page.
+  void _resetPaginationToFirstPage(String tableName) {
+    final paginationState = _paginationStates[tableName];
+    if (paginationState != null) {
+      paginationState['start'] = 0;
+      paginationState['currentPage'] = 1;
+    }
+  }
+
+  /// Initializes pagination state from the JSON table_options config.
+  void _initPaginationState(
+      String tableName, Map<String, dynamic> paginationConfig) {
+    if (_paginationStates.containsKey(tableName)) return;
+    final defaultPageSize = paginationConfig['defaultPageSize'] as int? ?? 50;
+    _paginationStates[tableName] = {
+      'start': 0,
+      'count': defaultPageSize,
+      'totalCount': 0,
+      'currentPage': 1,
+    };
+  }
+
+  /// Performs a server-side search with both filters and pagination
+  Future<void> _performPaginatedSearch(String tableName,
+      List<Map<String, dynamic>>? filtersData, MetaEntity metaEntity) async {
+    final paginationState = _paginationStates[tableName];
+    if (paginationState == null) return;
+
+    // Cached entities are paginated/filtered locally in the data_table
+    // builder (the backend /search endpoint refuses them). Some callers
+    // mutate pagination/filter state before calling this without wrapping
+    // it in setState themselves, so force a rebuild here to pick it up.
+    if (metaEntity.isListInCache) {
+      if (mounted) setState(() {});
+      return;
+    }
+
+    Map<String, dynamic> searchBody;
+    if (filtersData != null && filtersData.isNotEmpty) {
+      searchBody = _buildSearchBody(tableName, filtersData);
+    } else {
+      searchBody = {'filters': {}};
+    }
+
+    searchBody['pagination'] = {
+      'start': paginationState['start'],
+      'count': paginationState['count'],
+    };
+
+    setState(() => _searchingTables.add(tableName));
+    try {
+      final results = await FocService().searchItems(metaEntity, searchBody);
+      final data = results['data'] as List<dynamic>;
+      final totalCount = results['totalCount'] as int? ?? data.length;
+      if (mounted) {
+        setState(() {
+          _searchResults[tableName] = data
+              .map((item) =>
+                  FocEntity.fromJson(metaEntity, item as Map<String, dynamic>))
+              .toList();
+          paginationState['totalCount'] = totalCount;
+          _searchingTables.remove(tableName);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _searchingTables.remove(tableName));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Search failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Widget _buildPaginationBar(String tableName,
+      List<Map<String, dynamic>>? filtersData, MetaEntity? metaEntity) {
+    final state = _paginationStates[tableName]!;
+    final currentPage = state['currentPage']!;
+    final pageSize = state['count']!;
+    final totalCount = state['totalCount']!;
+    final totalPages =
+        totalCount > 0 ? ((totalCount + pageSize - 1) ~/ pageSize) : 1;
+    final isSearching = _searchingTables.contains(tableName);
+    final pageSizeOptions = [10, 25, 50, 100];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Page size selector
+          Row(
+            children: [
+              const Text('Rows per page: ', style: TextStyle(fontSize: 13)),
+              DropdownButton<int>(
+                value: pageSizeOptions.contains(pageSize)
+                    ? pageSize
+                    : pageSizeOptions.first,
+                underline: const SizedBox(),
+                style: const TextStyle(fontSize: 13, color: Colors.black),
+                items: pageSizeOptions
+                    .map((size) =>
+                        DropdownMenuItem(value: size, child: Text('$size')))
+                    .toList(),
+                onChanged: isSearching
+                    ? null
+                    : (newSize) {
+                        if (newSize != null && metaEntity != null) {
+                          setState(() {
+                            state['count'] = newSize;
+                            state['start'] = 0;
+                            state['currentPage'] = 1;
+                          });
+                          _performPaginatedSearch(
+                              tableName, filtersData, metaEntity);
+                        }
+                      },
+              ),
+            ],
+          ),
+          // Info text
+          Text(
+            '${totalCount > 0 ? state['start']! + 1 : 0}-'
+            '${(state['start']! + pageSize).clamp(0, totalCount)}'
+            ' of $totalCount',
+            style: const TextStyle(fontSize: 13, color: Colors.grey),
+          ),
+          // Navigation buttons
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.first_page, size: 20),
+                tooltip: 'First page',
+                onPressed:
+                    (isSearching || currentPage <= 1 || metaEntity == null)
+                        ? null
+                        : () {
+                            setState(() {
+                              state['currentPage'] = 1;
+                              state['start'] = 0;
+                            });
+                            _performPaginatedSearch(
+                                tableName, filtersData, metaEntity);
+                          },
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_left, size: 20),
+                tooltip: 'Previous page',
+                onPressed:
+                    (isSearching || currentPage <= 1 || metaEntity == null)
+                        ? null
+                        : () {
+                            setState(() {
+                              state['currentPage'] = currentPage - 1;
+                              state['start'] = (currentPage - 2) * pageSize;
+                            });
+                            _performPaginatedSearch(
+                                tableName, filtersData, metaEntity);
+                          },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  'Page $currentPage of $totalPages',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right, size: 20),
+                tooltip: 'Next page',
+                onPressed: (isSearching ||
+                        currentPage >= totalPages ||
+                        metaEntity == null)
+                    ? null
+                    : () {
+                        setState(() {
+                          state['currentPage'] = currentPage + 1;
+                          state['start'] = currentPage * pageSize;
+                        });
+                        _performPaginatedSearch(
+                            tableName, filtersData, metaEntity);
+                      },
+              ),
+              IconButton(
+                icon: const Icon(Icons.last_page, size: 20),
+                tooltip: 'Last page',
+                onPressed: (isSearching ||
+                        currentPage >= totalPages ||
+                        metaEntity == null)
+                    ? null
+                    : () {
+                        setState(() {
+                          state['currentPage'] = totalPages;
+                          state['start'] = (totalPages - 1) * pageSize;
+                        });
+                        _performPaginatedSearch(
+                            tableName, filtersData, metaEntity);
+                      },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<dynamic> _applyFilters(String tableName,
+      List<Map<String, dynamic>> filters, List<dynamic> rows,
+      [MetaEntity? metaEntity]) {
+    return rows.where((row) {
+      for (final filter in filters) {
+        final key = filter['key'] as String;
+        final type = filter['type'] as String? ?? 'string';
+        final state = _getFilterState(tableName, key);
+        final op = state['operator'] as String?;
+        final value = state['value'];
+
+        if (op == null || value == null || value.toString().isEmpty) continue;
+
+        final cellStr = _getCellSearchText(row, key, metaEntity);
+
+        switch (type) {
+          case 'string':
+            final cellLower = cellStr.toLowerCase();
+            final valLower = value.toString().toLowerCase();
+            switch (op) {
+              case 'contains':
+                if (!cellLower.contains(valLower)) return false;
+              case 'equals':
+                if (cellLower != valLower) return false;
+              case 'not_equals':
+                if (cellLower == valLower) return false;
+              case 'not_contains':
+                if (cellLower.contains(valLower)) return false;
+            }
+            break;
+          case 'numeric':
+            final cellNum = num.tryParse(cellStr);
+            final valNum = num.tryParse(value.toString());
+            if (cellNum == null || valNum == null) return false;
+            switch (op) {
+              case 'equals':
+                if (cellNum != valNum) return false;
+              case 'greater_than':
+                if (cellNum <= valNum) return false;
+              case 'less_than':
+                if (cellNum >= valNum) return false;
+              case 'greater_or_equal':
+                if (cellNum < valNum) return false;
+              case 'less_or_equal':
+                if (cellNum > valNum) return false;
+              case 'between':
+                final val2 = state['value2'];
+                final valNum2 =
+                    val2 != null ? num.tryParse(val2.toString()) : null;
+                if (valNum2 == null) return false;
+                if (cellNum < valNum || cellNum > valNum2) return false;
+            }
+            break;
+          case 'date':
+            final cellDate = DateTime.tryParse(cellStr);
+            final valDate =
+                value is DateTime ? value : DateTime.tryParse(value.toString());
+            if (cellDate == null || valDate == null) return false;
+            final cellDay =
+                DateTime(cellDate.year, cellDate.month, cellDate.day);
+            final valDay = DateTime(valDate.year, valDate.month, valDate.day);
+            switch (op) {
+              case 'equals':
+                if (cellDay != valDay) return false;
+              case 'after':
+                if (!cellDay.isAfter(valDay)) return false;
+              case 'before':
+                if (!cellDay.isBefore(valDay)) return false;
+              case 'between':
+                final val2 = state['value2'];
+                final valDate2 = val2 is DateTime
+                    ? val2
+                    : DateTime.tryParse(val2?.toString() ?? '');
+                if (valDate2 == null) return false;
+                final valDay2 =
+                    DateTime(valDate2.year, valDate2.month, valDate2.day);
+                if (cellDay.isBefore(valDay) || cellDay.isAfter(valDay2)) {
+                  return false;
+                }
+            }
+            break;
+        }
+      }
+      return true;
+    }).toList();
+  }
+
+  Widget _buildFilterSection(BuildContext context, String tableName,
+      List<Map<String, dynamic>> filters, MetaEntity? metaEntity) {
+    final isSearching = _searchingTables.contains(tableName);
+    return ExpansionTile(
+      title: Row(
+        children: [
+          Icon(Icons.filter_list, color: Colors.blueGrey.shade700, size: 20),
+          const SizedBox(width: 8),
+          Text('Filters',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blueGrey.shade700)),
+        ],
+      ),
+      tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+      collapsedShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+      children: [
+        ...filters.map((filter) {
+          final key = filter['key'] as String;
+          final label = filter['label'] as String? ?? key;
+          final type = filter['type'] as String? ?? 'string';
+          final operators = _getOperatorsForType(type);
+          final state = _getFilterState(tableName, key);
+          final selectedOp = state['operator'] as String?;
+          final isNullOp = selectedOp == 'isNull' || selectedOp == 'isNotNull';
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 130,
+                  child: Text(label,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w500, fontSize: 14)),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 150,
+                  child: DropdownButtonFormField<String>(
+                    value: selectedOp,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    hint:
+                        const Text('Operator', style: TextStyle(fontSize: 13)),
+                    items: operators
+                        .map((op) => DropdownMenuItem(
+                            value: op,
+                            child: Text(_operatorLabel(op),
+                                style: const TextStyle(fontSize: 13))))
+                        .toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        state['operator'] = val;
+                        state['value'] = null;
+                        state['value2'] = null;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (selectedOp != null && !isNullOp) ...[
+                  Expanded(
+                      child: _buildFilterInput(
+                          context, tableName, key, type, 'value', state)),
+                  if (selectedOp == 'between') ...[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text('and', style: TextStyle(fontSize: 13)),
+                    ),
+                    Expanded(
+                        child: _buildFilterInput(
+                            context, tableName, key, type, 'value2', state)),
+                  ],
+                ],
+              ],
+            ),
+          );
+        }),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton.icon(
+              icon: const Icon(Icons.clear, size: 18),
+              label: const Text('Clear'),
+              onPressed: () {
+                setState(() {
+                  for (final filter in filters) {
+                    final stateKey = '${tableName}_${filter['key']}';
+                    _filterStates.remove(stateKey);
+                  }
+                  _searchResults.remove(tableName);
+                  // Reset pagination to page 1 on clear
+                  final paginationState = _paginationStates[tableName];
+                  if (paginationState != null) {
+                    paginationState['start'] = 0;
+                    paginationState['currentPage'] = 1;
+                  }
+                });
+                // Re-fetch with pagination (no filters)
+                final paginationState = _paginationStates[tableName];
+                if (paginationState != null && metaEntity != null) {
+                  _performPaginatedSearch(tableName, null, metaEntity);
+                }
+              },
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              icon: isSearching
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.search, size: 18),
+              label: Text(isSearching ? 'Searching...' : 'Apply'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueGrey.shade700,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              ),
+              onPressed: isSearching
+                  ? null
+                  : () async {
+                      if (metaEntity == null) {
+                        // Fallback to client-side filtering
+                        setState(() {});
+                        return;
+                      }
+
+                      // Reset pagination to page 1 when filters change
+                      final paginationState = _paginationStates[tableName];
+                      if (paginationState != null) {
+                        paginationState['start'] = 0;
+                        paginationState['currentPage'] = 1;
+                        await _performPaginatedSearch(
+                            tableName, filters, metaEntity);
+                        return;
+                      }
+
+                      // Non-paginated search (original logic)
+                      final searchBody = _buildSearchBody(tableName, filters);
+                      final messenger = ScaffoldMessenger.of(context);
+                      setState(() => _searchingTables.add(tableName));
+                      try {
+                        final results = await FocService()
+                            .searchItems(metaEntity, searchBody);
+                        final data = results['data'] as List<dynamic>;
+                        if (mounted) {
+                          setState(() {
+                            _searchResults[tableName] = data
+                                .map((item) => FocEntity.fromJson(
+                                    metaEntity, item as Map<String, dynamic>))
+                                .toList();
+                            _searchingTables.remove(tableName);
+                          });
+                        }
+                      } catch (e) {
+                        if (!mounted) return;
+                        setState(() => _searchingTables.remove(tableName));
+                        messenger.showSnackBar(
+                          SnackBar(
+                              content: Text('Search failed: $e'),
+                              backgroundColor: Colors.red),
+                        );
+                      }
+                    },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterInput(BuildContext context, String tableName, String key,
+      String type, String valueKey, Map<String, dynamic> state) {
+    if (type == 'date') {
+      final dateVal = state[valueKey] as DateTime?;
+      return InkWell(
+        onTap: () async {
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: dateVal ?? DateTime.now(),
+            firstDate: DateTime(2000),
+            lastDate: DateTime(2100),
+          );
+          if (picked != null) {
+            setState(() {
+              state[valueKey] = picked;
+            });
+          }
+        },
+        child: InputDecorator(
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            suffixIcon: const Icon(Icons.calendar_today, size: 16),
+          ),
+          child: Text(
+            dateVal != null
+                ? '${dateVal.year}-${dateVal.month.toString().padLeft(2, '0')}-${dateVal.day.toString().padLeft(2, '0')}'
+                : '',
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+      );
+    }
+
+    // String or numeric
+    return TextFormField(
+      initialValue: state[valueKey]?.toString() ?? '',
+      keyboardType:
+          type == 'numeric' ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        hintText: type == 'numeric' ? '0' : 'Value',
+        hintStyle: const TextStyle(fontSize: 13),
+      ),
+      style: const TextStyle(fontSize: 13),
+      onChanged: (val) {
+        state[valueKey] = val;
+      },
+    );
+  }
+
+  // ── Search API helpers ─────────────────────────────────────────────
+
+  String _formatDateForApi(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  dynamic _formatFilterValue(String type, dynamic value) {
+    if (type == 'date' && value is DateTime) {
+      return _formatDateForApi(value);
+    } else if (type == 'numeric') {
+      return num.tryParse(value.toString()) ?? value;
+    }
+    return value;
+  }
+
+  Map<String, dynamic> _buildSearchBody(
+      String tableName, List<Map<String, dynamic>> filters) {
+    final Map<String, dynamic> apiFilters = {};
+
+    for (final filter in filters) {
+      final key = filter['key'] as String;
+      final type = filter['type'] as String? ?? 'string';
+      final state = _getFilterState(tableName, key);
+      final op = state['operator'] as String?;
+      final value = state['value'];
+
+      if (op == null) continue;
+
+      // Operators that don't need a value
+      if (op == 'isNull' || op == 'isNotNull') {
+        apiFilters[key] = {'operator': op};
+        continue;
+      }
+
+      if (value == null || value.toString().isEmpty) continue;
+
+      final formattedValue = _formatFilterValue(type, value);
+
+      if (op == '=') {
+        // Simple equality - direct value
+        apiFilters[key] = formattedValue;
+      } else if (op == 'between') {
+        final value2 = state['value2'];
+        if (value2 != null && value2.toString().isNotEmpty) {
+          apiFilters[key] = {
+            'operator': 'between',
+            'from': formattedValue,
+            'to': _formatFilterValue(type, value2),
+          };
+        }
+      } else {
+        apiFilters[key] = {
+          'operator': op,
+          'value': formattedValue,
+        };
+      }
+    }
+
+    return {'filters': apiFilters};
+  }
+
+  // ── End filter helpers ────────────────────────────────────────────
+
   void _editFocEntity(FocEntity item) {
     Navigator.push(
       context,
@@ -899,11 +2121,9 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
             metaEntity: item.metaEntity, itemId: item.id.toString()),
       ),
     ).then((updatedItem) {
-      // if (updatedItem != null) {
-      //   setState(() {
-      //     futureItems = FocService().fetchItems(item.metaEntity);
-      //   });
-      // }
+      if (updatedItem != null) {
+        widget.state.refreshData();
+      }
     });
   }
 
@@ -911,19 +2131,24 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
     try {
       debugPrint("About to delete ${item.id}");
       await FocService().deleteItem(item.metaEntity, item.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Item ${item.id} deleted successfully'),
-            backgroundColor: Colors.green),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Item ${item.id} deleted successfully'),
+              backgroundColor: Colors.green),
+        );
+        widget.state.refreshData();
+      }
     } catch (e, stacktrace) {
       debugPrint("Error deleting item: $e");
       debugPrint("Stacktrace: $stacktrace");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Failed to delete item: $e'),
-            backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Failed to delete item: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
     }
   }
 }
@@ -931,6 +2156,9 @@ class _JsonFormBuilderState extends State<JsonFormBuilder> {
 abstract class JsonFormState<T extends StatefulWidget> extends State<T> {
   @override
   Widget build(BuildContext context);
+
+  /// Override to reload list data after a change (insert, edit, delete)
+  void refreshData() {}
 
   /// Override this method to add custom column headers
   /// Returns a list of DataColumn widgets that will be inserted before the Actions column

@@ -190,6 +190,24 @@ public class B01JsonBuilder {
 		}
 	}
 	
+	/**
+	 * Appends a key whose value is already a valid JSON fragment (object, array, or literal).
+	 * Unlike {@link #appendKeyValue(String, String)} the value is written verbatim —
+	 * it is NOT quoted or escaped. Use this for JSON field types so that clients
+	 * receive a proper JSON object instead of a JSON-encoded string.
+	 * If value is null or empty, "null" is written as the value.
+	 */
+	public void appendRawJsonKeyValue(String key, String value) {
+		if (buffer != null) {
+			appendKey(key);
+			if (value == null || value.isEmpty()) {
+				buffer.append("null");
+			} else {
+				buffer.append(value);
+			}
+		}
+	}
+
 	public void appendKeyValueIfNotNull(String key, String value){
 		if(buffer != null && key != null && value != null){
 			appendKey(key);

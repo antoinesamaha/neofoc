@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
+import 'package:focui/main.dart';
+import 'package:focui/src/auth/auth_service.dart';
 import '../meta_feature/meta_entity.dart';
 import 'foc_entity.dart';
 import 'foc_field_types.dart';
@@ -11,9 +13,18 @@ import '../../components/json_form_builder.dart';
 class FocDetailsView extends StatefulWidget {
   final MetaEntity metaEntity;
   final String? itemId;
+  final Map<String, dynamic>? defaultValues;
+
+  /// Optional widget shown above the form (e.g. a live status banner).
+  /// It is rendered independently from the form and does not affect editable fields.
+  final Widget? statusWidget;
 
   const FocDetailsView(
-      {super.key, required this.metaEntity, required this.itemId});
+      {super.key,
+      required this.metaEntity,
+      required this.itemId,
+      this.defaultValues,
+      this.statusWidget});
 
   static const routeName = '/entity/details';
 
@@ -24,19 +35,118 @@ class FocDetailsView extends StatefulWidget {
 class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
   final _formKey = GlobalKey<FormBuilderState>();
   late Future<FocEntity> futureItem;
+  late Future<String?> futureFormTitle;
 
   @override
   void initState() {
     super.initState();
     futureItem =
         FocService().fetchItemDetails(widget.metaEntity, widget.itemId ?? '');
+    futureFormTitle = _loadFormTitle();
+  }
+
+  /// Reads the "title" key from the entity's form JSON, if any, to use as
+  /// the AppBar title instead of the raw entity/table name.
+  Future<String?> _loadFormTitle() async {
+    final entityFormFile =
+        'assets/forms/${widget.metaEntity.name.toLowerCase().replaceAll(' ', '_')}_form.json';
+    final formData = await loadJsonAssetIfExists(entityFormFile);
+    return formData?['title'] as String?;
+  }
+
+  Future<void> _showSetPasswordDialog(String username) async {
+    final formKey = GlobalKey<FormState>();
+    final newPasswordCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    bool loading = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Text('Set Password for $username'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: newPasswordCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'New Password'),
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: confirmCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Confirm Password'),
+                  validator: (v) => v != newPasswordCtrl.text
+                      ? 'Passwords do not match'
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: loading
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setState(() => loading = true);
+                      try {
+                        final authService = getIt<AuthService>();
+                        await authService.changePassword(
+                          username,
+                          null,
+                          newPasswordCtrl.text,
+                        );
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content:
+                                  Text('Password for $username updated')),
+                        );
+                      } catch (e) {
+                        setState(() => loading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(e
+                                  .toString()
+                                  .replaceFirst('Exception: ', ''))),
+                        );
+                      }
+                    },
+              child: loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Set Password'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _saveItem(FocEntity focEntity) async {
     if (_formKey.currentState?.saveAndValidate() ?? false) {
-      final updatedData = _formKey.currentState?.value;
-      final updatedEntity =
-          FocEntity.fromJson(focEntity.metaEntity, updatedData!);
+      final updatedData = Map<String, dynamic>.from(_formKey.currentState!.value);
+      // Merge hidden defaults (e.g. parent FK) that are not rendered in the form
+      if (widget.defaultValues != null) {
+        for (final entry in widget.defaultValues!.entries) {
+          updatedData.putIfAbsent(entry.key, () => entry.value);
+        }
+      }
+      final updatedEntity = FocEntity.fromJson(focEntity.metaEntity, updatedData);
       try {
         if (updatedEntity.id != null && updatedEntity.id > 0) {
           await FocService().updateItem(widget.metaEntity, updatedEntity);
@@ -54,9 +164,32 @@ class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-            '${widget.metaEntity.name[0].toUpperCase()}${widget.metaEntity.name.substring(1)}'),
+        title: FutureBuilder<String?>(
+          future: futureFormTitle,
+          builder: (context, snapshot) {
+            // Stay blank until the form JSON is loaded, rather than
+            // flashing the raw entity name before the real title arrives.
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const SizedBox.shrink();
+            }
+            final title = snapshot.data ??
+                '${widget.metaEntity.name[0].toUpperCase()}${widget.metaEntity.name.substring(1)}';
+            return Text(title);
+          },
+        ),
         actions: [
+          if (widget.metaEntity.storageName == 'FUSER')
+            FutureBuilder<FocEntity>(
+              future: futureItem,
+              builder: (context, snapshot) => IconButton(
+                icon: const Icon(Icons.key),
+                tooltip: 'Set Password',
+                onPressed: snapshot.hasData
+                    ? () => _showSetPasswordDialog(
+                        snapshot.data!['NAME']?.toString() ?? '')
+                    : null,
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.save),
             onPressed: () async {
@@ -66,38 +199,48 @@ class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
           ),
         ],
       ),
-      body: FutureBuilder<FocEntity>(
-        future: futureItem,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData) {
-            return const Center(child: Text('No item details found'));
-          } else {
-            final focEntity = snapshot.data!;
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: FutureBuilder<Widget>(
-                future: entityForm(focEntity),
-                builder: (context, formSnapshot) {
-                  if (formSnapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (formSnapshot.hasError) {
-                    return Center(
-                        child:
-                            Text('Error loading form: ${formSnapshot.error}'));
-                  } else if (formSnapshot.hasData) {
-                    return formSnapshot.data!;
-                  } else {
-                    return const Center(child: Text('No form available'));
-                  }
-                },
-              ),
-            );
-          }
-        },
+      body: Column(
+        children: [
+          if (widget.statusWidget != null) widget.statusWidget!,
+          Expanded(
+            child: FutureBuilder<FocEntity>(
+              future: futureItem,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                } else if (!snapshot.hasData) {
+                  return const Center(child: Text('No item details found'));
+                } else {
+                  final focEntity = snapshot.data!;
+                  return Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: FutureBuilder<Widget>(
+                      future: entityForm(focEntity),
+                      builder: (context, formSnapshot) {
+                        if (formSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        } else if (formSnapshot.hasError) {
+                          return Center(
+                              child: Text(
+                                  'Error loading form: ${formSnapshot.error}'));
+                        } else if (formSnapshot.hasData) {
+                          return formSnapshot.data!;
+                        } else {
+                          return const Center(
+                              child: Text('No form available'));
+                        }
+                      },
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -126,10 +269,14 @@ class _FocDetailsViewState extends JsonFormState<FocDetailsView> {
         formData: formData,
         formKey: _formKey,
         initialValues: focEntity.properties,
+        hiddenValues: widget.defaultValues,
         onChanged: (values) {
           // Handle form changes if needed
         },
         autovalidateMode: AutovalidateMode.onUserInteraction,
+        // The form's root "title" (if any) is already shown as the AppBar
+        // title above - don't render it again inline.
+        showRootTitle: false,
         state: this,
       );
     } catch (e) {

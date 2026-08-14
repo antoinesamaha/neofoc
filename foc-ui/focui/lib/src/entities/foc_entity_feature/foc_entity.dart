@@ -12,7 +12,11 @@ class FocEntity {
   }
 
   dynamic get id {
-    var idValue = properties['id'] ?? properties['REF'];
+    var idValue = properties['id'];
+    // FOC uses 0 for unset references; treat 0 as absent so REF is used for legacy entities
+    if (idValue == null || idValue == 0) {
+      idValue = properties['REF'];
+    }
     if (idValue is String) {
       return int.tryParse(idValue);
     }

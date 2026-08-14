@@ -25,11 +25,15 @@ import com.foc.controller.FocRestAPICall;
 import com.foc.desc.FocConstructor;
 import com.foc.desc.FocDesc;
 import com.foc.desc.FocDescMap;
+import com.foc.desc.FocFieldEnum;
 import com.foc.desc.FocObject;
 import com.foc.desc.field.FField;
+import com.foc.desc.field.FObjectField;
 import com.foc.list.FocList;
 import com.foc.shared.json.B01JsonBuilder;
 import com.foc.util.Utils;
+import com.neofoc.springboot.model.dto.FilterRequest;
+import com.neofoc.springboot.service.FilterParser;
 
 @RestController
 @RequestMapping("foc")
@@ -38,6 +42,9 @@ public class FocController {
 
     @Autowired
     private PathMatcher pathMatcher;
+
+    @Autowired
+    private FilterParser filterParser;
 
     private String getWildcardParam(HttpServletRequest request) {
         String patternAttribute = (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
@@ -143,7 +150,7 @@ public class FocController {
     }
 
     public boolean useCachedList(FocRestAPICall focRequest) {
-        return true;
+        return focRequest != null && focRequest.getFocDesc() != null && focRequest.getFocDesc().isListInCache();
     }
 
     // ------------------------------------
@@ -277,9 +284,8 @@ public class FocController {
         FocList list = focDesc != null ? focDesc.getFocList() : null;
         if (list == null) {
             list = new FocList(new FocLinkSimple(focDesc));
-            if(request.getRef() > 0){
-                applyRefFilterIfNeeded(request, list);
-            }
+
+            applyRefFilterIfNeeded(request, list);
         }
         if (loaded && list != null) {
             // If refresh cached list is functional on the foc level then here we do not
@@ -312,8 +318,12 @@ public class FocController {
     }
 
     protected long doPost_GetReference(JSONObject jsonObj, FocList list) {
+        return doPost_GetReference(jsonObj, list.getFocDesc());
+    }
+
+    protected long doPost_GetReference(JSONObject jsonObj, FocDesc focDesc) {
         int ref = 0;
-        String idDBName = list.getFocDesc().getIdentifierField().getDBName();
+        String idDBName = focDesc.getIdentifierField().getDBName();
         if (jsonObj != null && jsonObj.has(idDBName)) {
             try {
                 ref = jsonObj.getInt(idDBName);
@@ -340,8 +350,12 @@ public class FocController {
 
     public long getFilterRef(HttpServletRequest request, FocList list) {
         String idDBName = list.getFocDesc().getIdentifierField().getDBName();
-        String refStr = request != null ? request.getParameter(idDBName) : null;
-        long ref = refStr != null ? Utils.parseLong(refStr, 0) : 0;
+        PathDetails pathDetails = getPathDetails(request);
+        long ref = pathDetails.getId();
+        if (ref == 0) {
+            String refStr = request != null ? request.getParameter(idDBName) : null;
+            ref = refStr != null ? Utils.parseLong(refStr, 0) : 0;
+        }
         return ref;
     }
 
@@ -463,7 +477,7 @@ public class FocController {
                     }
                     if (filterRef > 0) {
                         FocObject focObject = null;
-                        if (!useCachedList(null)) {
+                        if (!useCachedList(focRequest)) {
                             if (list.size() == 1) {
                                 focObject = list.getFocObject(0);
                             }
@@ -481,7 +495,7 @@ public class FocController {
                     } else {
                         int start = -1;
                         int count = -1;
-                        if (useCachedList(null)) {
+                        if (useCachedList(focRequest)) {
                             start = getStartParameter(request);
                             count = getCountParameter(request);
                         }
@@ -506,7 +520,7 @@ public class FocController {
 //							responseBody = "{ \"list\":" + userJson + ", \"totalCount\":"+totalCount+"}";
                     }
 
-                    if (!useCachedList(null)) {
+                    if (!useCachedList(focRequest)) {
                         disposeFocList(focRequest, list);
                         list = null;
                     }
@@ -573,6 +587,27 @@ public class FocController {
         return null;
     }
 
+    protected void afterPost_UpdateCacheableParents(FocObject focObj) {
+        if (focObj == null) return;
+        FocDesc childDesc = focObj.getThisFocDesc();
+        if (childDesc == null) return;
+
+        FocFieldEnum enumer = childDesc.newFocFieldEnum(FocFieldEnum.CAT_ALL, FocFieldEnum.LEVEL_PLAIN);
+        while (enumer != null && enumer.hasNext()) {
+            FField field = (FField) enumer.next();
+            if (field instanceof FObjectField) {
+                FObjectField objField = (FObjectField) field;
+                FocDesc parentDesc = objField.getFocDesc();
+                if (parentDesc != null && parentDesc.isListInCache()) {
+                    long parentRef = focObj.getPropertyObjectLocalReference(field.getName());
+                    if (parentRef > 0) {
+                        parentDesc.refreshCachedListFocObject(parentRef);
+                    }
+                }
+            }
+        }
+    }
+
     @PutMapping("obj/**")
     protected void doPut(HttpServletRequest request, HttpServletResponse response, @RequestBody String body)
             throws ServletException, IOException {
@@ -616,7 +651,7 @@ public class FocController {
 
                 String checkErrorJson = doPost_CheckError(focRequest, jsonObj);
                 if (checkErrorJson == null) {
-                    if (useCachedList(null)) {
+                    if (useCachedList(focRequest)) {
                         list = newFocList(focRequest, false);
                         if (list != null) {
                             list.loadIfNotLoadedFromDB();
@@ -632,7 +667,7 @@ public class FocController {
                             }
                         }
                     } else {
-                        long ref = doPost_GetReference(jsonObj, list);
+                        long ref = doPost_GetReference(jsonObj, focDesc);
                         focObj = newFocObject_POST(focRequest, ref);
                     }
 
@@ -666,6 +701,7 @@ public class FocController {
                             response.getWriter().println(userJson);
                         } else {
                             // afterPost(focRequest, focObj, created);
+                            afterPost_UpdateCacheableParents(focObj);
 
                             userJson = toJsonDetails(focObj, builder);
                             // focObj.toJson(builder);
@@ -677,7 +713,7 @@ public class FocController {
                             response.getWriter().println(userJson);
                         }
 
-                        if (!useCachedList(null)) {
+                        if (!useCachedList(focRequest)) {
                             disposeFocObject_POST(focRequest, focObj);
                         }
 
@@ -844,6 +880,200 @@ public class FocController {
 
     public interface ICopyFromJsonToSlave {
         public void copyJsonToObject(FocObject slaveObj, JSONObject slaveJson);
+    }
+
+    // ====================================================================
+    // POST /foc/obj/{entityName}/search - Advanced Filtering Endpoint
+    // ====================================================================
+
+    /**
+     * Advanced search endpoint with filtering, pagination, and sorting
+     * POST /foc/obj/{entityName}/search
+     *
+     * Request Body Example:
+     * {
+     *   "filters": {
+     *     "status": "ACTIVE",
+     *     "amount": {"operator": ">=", "value": 1000},
+     *     "created_date": {"operator": "between", "from": "2024-01-01", "to": "2024-12-31"}
+     *   },
+     *   "pagination": {"start": 0, "count": 50},
+     *   "orderBy": [{"field": "created_date", "direction": "DESC"}]
+     * }
+     *
+     * Security:
+     * - Field whitelisting via FocDesc
+     * - Operator whitelisting
+     * - SQL injection protection
+     * - Only works with non-cacheable entities
+     *
+     * @param request HTTP request
+     * @param response HTTP response
+     * @param filterRequest Filter request body
+     * @throws ServletException
+     * @throws IOException
+     */
+    @PostMapping("obj/{entityName}/search")
+    public void doSearch(@PathVariable String entityName,
+                         HttpServletRequest request, HttpServletResponse response,
+                         @RequestBody FilterRequest filterRequest)
+            throws ServletException, IOException {
+
+        // You can now use entityName directly
+        PathDetails reqParams = getPathDetails(request);
+        FocDesc focDesc = Globals.getApp().getFocDescByName(entityName);
+
+        if (focDesc == null) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            setCORS(response);
+            response.getWriter().println("{\"message\": \"Entity not found\"}");
+            return;
+        }
+
+        Globals.logString(" => SEARCH Begin " + focDesc.getName());
+
+        int returnedStatus = HttpServletResponse.SC_NOT_IMPLEMENTED;
+        String userJson = "";
+        FocRestAPICall focRequest = null;
+        FocList list = null;
+
+        try {
+            focRequest = newFocRestAPICall(request, focDesc);
+
+            // Check if search is allowed for this entity
+            if (!allowSearch(focRequest)) {
+                returnedStatus = HttpServletResponse.SC_FORBIDDEN;
+                userJson = "{\"message\": \"Search not allowed for this entity\"}";
+                response.setStatus(returnedStatus);
+                setCORS(response);
+                response.getWriter().println(userJson);
+                Globals.logString(" <= SEARCH End (Forbidden) " + focDesc.getName());
+                return;
+            }
+
+            // Check rights
+            if (!mobileModule_HasRead(focRequest)) {
+                returnedStatus = HttpServletResponse.SC_FORBIDDEN;
+                userJson = "{\"message\": \"Read permission denied\"}";
+                response.setStatus(returnedStatus);
+                setCORS(response);
+                response.getWriter().println(userJson);
+                Globals.logString(" <= SEARCH End (No Permission) " + focDesc.getName());
+                return;
+            }
+
+            // Reject if entity is cacheable - search only works with non-cacheable lists
+            if (focDesc.isListInCache()) {
+                returnedStatus = HttpServletResponse.SC_BAD_REQUEST;
+                userJson = "{\"message\": \"Search not supported for cacheable entities. Use GET /foc/obj/" + focDesc.getName() + " instead.\"}";
+                response.setStatus(returnedStatus);
+                setCORS(response);
+                response.getWriter().println(userJson);
+                Globals.logString(" <= SEARCH End (Cacheable) " + focDesc.getName());
+                return;
+            }
+
+            // Create new list (non-cached)
+            list = new FocList(new FocLinkSimple(focDesc));
+
+            // Apply filters, pagination, and ordering
+            if (filterParser != null) {
+                filterParser.applyFiltersToList(filterRequest, list, focDesc);
+            } else {
+                Globals.logString("WARNING: FilterParser is null");
+            }
+
+            // Load from database with filters applied
+            list.loadIfNotLoadedFromDB();
+
+            // Build JSON response
+            B01JsonBuilder builder = newJsonBuiler(request);
+            list.toJson(builder);
+            userJson = builder.toString();
+
+            int totalCount = list.size();
+
+            // If pagination is applied, get total count via COUNT query (not page size)
+            if (filterRequest.getPagination() != null && list.getFilter() != null
+                    && list.getFilter().getOffset() >= 0 && list.getFilter().getOffsetCount() >= 0) {
+                totalCount = requestTotalCount(list);
+            }
+
+            String responseBody = "{ \"data\":" + userJson + ", \"totalCount\":" + totalCount + "}";
+
+            returnedStatus = HttpServletResponse.SC_OK;
+            response.setStatus(returnedStatus);
+            setCORS(response);
+            response.getWriter().println(responseBody);
+
+            String log = responseBody;
+            if (log.length() > 500) {
+                log = log.substring(0, 499) + "...";
+            }
+            Globals.logString("  = Returned: " + log);
+
+        } catch (IllegalArgumentException e) {
+            // Validation error (invalid field, operator, value, etc.)
+            returnedStatus = HttpServletResponse.SC_BAD_REQUEST;
+            userJson = "{\"message\": \"Validation error: " + escapeJsonString(e.getMessage()) + "\"}";
+            Globals.logString("SEARCH Validation Error: " + e.getMessage());
+            response.setStatus(returnedStatus);
+            setCORS(response);
+            response.getWriter().println(userJson);
+
+        } catch (SecurityException e) {
+            // SQL injection attempt detected
+            returnedStatus = HttpServletResponse.SC_FORBIDDEN;
+            userJson = "{\"message\": \"Security violation detected\"}";
+            Globals.logException(e);
+            response.setStatus(returnedStatus);
+            setCORS(response);
+            response.getWriter().println(userJson);
+
+        } catch (Exception e) {
+            // Internal server error
+            returnedStatus = HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+            userJson = "{\"message\": \"Internal server error: " + escapeJsonString(e.getMessage()) + "\"}";
+            Globals.logException(e);
+            response.setStatus(returnedStatus);
+            setCORS(response);
+            response.getWriter().println(userJson);
+
+        } finally {
+            // Always dispose non-cached list
+            if (list != null) {
+                disposeFocList(focRequest, list);
+                list = null;
+            }
+            if (focRequest != null) {
+                focRequest.dispose();
+            }
+        }
+
+        Globals.logString(" <= SEARCH End " + focDesc.getName() + " " + returnedStatus);
+    }
+
+    /**
+     * Override this method to control whether search is allowed for specific entities
+     * Default: true (search allowed)
+     *
+     * @param focRequest The request context
+     * @return true if search is allowed, false otherwise
+     */
+    protected boolean allowSearch(FocRestAPICall focRequest) {
+        return true; // Override in subclasses for entity-specific authorization
+    }
+
+    /**
+     * Escape special characters in JSON strings
+     */
+    private String escapeJsonString(String str) {
+        if (str == null) return "";
+        return str.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
     private class PathDetails {

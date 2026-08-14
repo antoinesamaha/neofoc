@@ -6,6 +6,7 @@ import com.foc.business.workflow.implementation.FocWorkflowObject;
 import com.foc.controller.FocRestAPICall;
 import com.foc.desc.*;
 import com.foc.desc.field.FField;
+import com.foc.desc.field.FObjectField;
 import com.foc.list.FocList;
 import com.foc.shared.json.B01JsonBuilder;
 import com.foc.util.Utils;
@@ -20,7 +21,11 @@ import org.springframework.util.PathMatcher;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.HandlerMapping;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("meta")
@@ -56,6 +61,9 @@ public class MetaController {
                 fieldJson.put("dbName", field.getDBName());
                 fieldJson.put("sqlType", field.getSqlType());
                 fieldJson.put("type", field.getFabType());
+                if(field instanceof FObjectField objFld && objFld.getFocDesc() != null) {
+                    fieldJson.put("storageName", objFld.getFocDesc().getStorageName());
+                }
                 jsonFieldArray.put(fieldJson);
             }
             focDescJson.put("fields", jsonFieldArray);
@@ -64,6 +72,36 @@ public class MetaController {
         }
         jsonObject.put("data", jsonDataArray);
         jsonObject.put("count", jsonDataArray.length());
+        return ResponseEntity.ok().body(jsonObject.toString());
+    }
+
+    @GetMapping("monitor/objects")
+    public ResponseEntity<String> monitorObjects() {
+        FocDescMap focDescMap = Globals.getApp().getFocDescMap();
+
+        List<Map.Entry<String, Integer>> entries = new ArrayList<>();
+        for (String key : focDescMap.keySet()) {
+            FocDesc focDesc = focDescMap.get(key);
+            int count = focDesc.allFocObjectArray_size();
+            entries.add(Map.entry(focDesc.getName() != null ? focDesc.getName() : key, count));
+        }
+        entries.sort(Comparator.comparingInt(Map.Entry<String, Integer>::getValue).reversed());
+
+        int total = 0;
+        JSONArray jsonDataArray = new JSONArray();
+        for (Map.Entry<String, Integer> entry : entries) {
+            JSONObject item = new JSONObject();
+            item.put("name", entry.getKey());
+            item.put("count", entry.getValue());
+            jsonDataArray.put(item);
+            if (entry.getValue() > 0) {
+                total += entry.getValue();
+            }
+        }
+
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("total", total);
+        jsonObject.put("data", jsonDataArray);
         return ResponseEntity.ok().body(jsonObject.toString());
     }
 

@@ -297,7 +297,11 @@ public abstract class FField implements Cloneable, IFocData {
       field = new FTimeField(name, name, id, false);
       break;
     case Types.BIT:
+    case Types.BOOLEAN:
       field = new FBoolField(name, name, id, false);
+      break;
+    case Types.OTHER:
+      field = new FJsonField(name, name, id, false);
       break;
     case Types.JAVA_OBJECT:
       // field = FObjectField(name, name, id, false, size, decimals);
